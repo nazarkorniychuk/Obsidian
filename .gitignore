@@ -1,0 +1,9 @@
+# OS
+.DS_Store
+
+# Obsidian workspace state (device-specific, changes constantly)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+# Claudian plugin data (conversation history, local state)
+.claudian/
