@@ -46,6 +46,8 @@ No activation wins everywhere; choice interacts with architecture, depth, scale 
 
 $$\text{sigmoid}(x) = \tfrac{1}{1+e^{-x}} \qquad \tanh(x)$$
 
+![[act-sigmoid-tanh.png|420]]
+
 - Saturate: derivative → 0 for large $|x|$; chain-rule product across layers → **vanishing gradients**
 - Result: sigmoid nets **fail to converge** (chance-level accuracy) in deep conv tasks; tanh converges but loses to ReLU on classification, wins only on bounded-output tasks like image reconstruction ([[Deep Learning using Rectified Linear Units (2018)|Agarap 2018 rev.]], 10-trial Kruskal-Wallis)
 - **Conclusion:** dead as hidden activations; sigmoid survives as gate (LSTM, attention, Swish/GLU)
@@ -54,6 +56,8 @@ $$\text{sigmoid}(x) = \tfrac{1}{1+e^{-x}} \qquad \tanh(x)$$
 
 $$\text{ReLU}(x) = \max(0, x)$$
 
+![[act-relu.png|420]]
+
 - Origin: Nair & Hinton 2010 — widely mis-cited; record corrected in [[Deep Learning using Rectified Linear Units (2018)]]
 - Derivative = 1 for $x>0$: gradients pass through arbitrary depth undiminished → enabled AlexNet 2012 and the CNN era
 - **Expressivity results:** depth separation is super-exponential — functions computable at size $k^3$ with $k^2$ layers require $\sim \frac{1}{2}k^{k+1}$ nodes at $k$ layers ([[Understanding Deep Neural Networks with Rectified Linear Units (2016)|Arora 2016]]); ReLU solutions coincide with optimal piecewise-linear splines of regularized training, same framework justifies weight decay and skip connections ([[The Role of Neural Network Activation Functions (2019)|Parhi & Nowak 2019]])
@@ -61,6 +65,8 @@ $$\text{ReLU}(x) = \max(0, x)$$
 - **Conclusion:** still optimal where compute cost dominates or nets are shallow
 
 ## Leaky ReLU, PReLU, RReLU
+
+![[act-leaky.png|420]]
 
 - $\max(\alpha x, x)$; $\alpha$ fixed (Leaky), learned (PReLU), randomized in training (RReLU)
 - **Results** ([[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)|Xu 2015]], CIFAR-10/100): any non-zero negative slope **consistently beats plain ReLU** → refutes the sparsity-is-the-key hypothesis; Leaky/PReLU overfit on small data, RReLU best there (75.68% CIFAR-100 no ensemble)
@@ -71,6 +77,8 @@ $$\text{ReLU}(x) = \max(0, x)$$
 
 $$\text{ELU}(x) = x \;(x>0), \quad \alpha(e^x - 1) \;(x \le 0)$$
 
+![[act-elu.png|420]]
+
 - Negative outputs push mean activations → 0 (reduces bias shift ≈ batch-norm centering for free); negative saturation at $-\alpha$ gives noise-robust off-state
 - **Results** ([[Fast and Accurate Deep Network Learning by Exponential Linear Units (2015)|Clevert 2015]]): faster learning + better generalization than ReLU/Leaky on nets ≥ 5 layers; **CIFAR-100: ELU beats ReLU + batch norm**, and batch norm adds nothing on top of ELU; best published CIFAR-100 at the time; ImageNet training speedup at equal architecture
 - **Conclusion:** never displaced ReLU — exp cost + gains shrank once batch norm standard; per [[Activation Functions in Deep Learning - A Comprehensive Survey and Benchmark (2021)|Dubey 2021]] the repair family's gains are too inconsistent to pay switching cost
@@ -78,6 +86,8 @@ $$\text{ELU}(x) = x \;(x>0), \quad \alpha(e^x - 1) \;(x \le 0)$$
 ## GELU
 
 $$\text{GELU}(x) = x \cdot \Phi(x)$$
+
+![[act-gelu.png|420]]
 
 - = expectation of Bernoulli($\Phi(x)$) input gating — input-adaptive dropout averaged; equivalently a hard gate with Gaussian-random threshold ([[A Structural Interpretation of GELU (2026)|Rossi 2026]])
 - Smooth, non-monotonic (min ≈ −0.17 at $x \approx -0.75$), gradient everywhere — no dead neurons
@@ -88,6 +98,8 @@ $$\text{GELU}(x) = x \cdot \Phi(x)$$
 
 $$\text{Swish}(x) = x \cdot \text{sigmoid}(\beta x)$$
 
+![[act-swish.png|420]]
+
 - Found by automated search (exhaustive + RL); search converged on ≈ GELU's shape — evidence the smooth-self-gated shape is a genuine optimum, not a guess ([[Searching for Activation Functions (2017)|Ramachandran 2017]]); ReLU/GELU/SiLU/hard-swish form one threshold-transmission family differing only in gate-noise distribution ([[A Structural Interpretation of GELU (2026)]])
 - **Results:** ImageNet top-1 **+0.9%** (Mobile NASNet-A), **+0.6%** (Inception-ResNet-v2) over ReLU as drop-in; gains grow with depth
 - **Counter-result:** no gain over ReLU on small CNN / CIFAR-10 ([[Benchmarking Comparison of Swish vs Other Activation Functions on CIFAR-10 (2019)|Szandala 2019]]) → advantage is a depth-and-scale phenomenon
@@ -97,6 +109,8 @@ $$\text{Swish}(x) = x \cdot \text{sigmoid}(\beta x)$$
 
 $$\text{Mish}(x) = x \tanh(\text{softplus}(x))$$
 
+![[act-mish.png|420]]
+
 - Swish family; wider negative dip; first-derivative shape argued to smooth the loss landscape
 - **Results** ([[Mish - A Self Regularized Non-Monotonic Activation Function (2020)|Misra 2020]]): **ImageNet ≈ +1%** top-1 over ReLU (ResNet-50, identical hyperparams); **MS-COCO +2.1% AP₅₀** over Leaky ReLU (YOLOv4/CSP-DarkNet-53); consistent wins over ReLU *and* Swish in benchmark sweeps
 - **Conclusion:** detection niche champion; never entered transformers (GELU/SwiGLU had won; tanh+softplus costlier)
@@ -104,6 +118,8 @@ $$\text{Mish}(x) = x \tanh(\text{softplus}(x))$$
 ## SwiGLU / GLU variants
 
 $$\text{SwiGLU}(x) = (W_1 x) \otimes \text{Swish}(W_2 x)$$
+
+![[act-swiglu.png|420]]
 
 - FFN redesign, not element-wise: two projections, one gates the other — see [[GLU Variants]]; tested variants ReGLU/GEGLU/SwiGLU at fixed parameter count ($d_{ff}$ shrunk 2/3)
 - **Results** ([[GLU Variants Improve Transformer (2020)|Shazeer 2020]]): GEGLU/SwiGLU **beat ReLU and GELU FFNs** on T5 pre-training perplexity and GLUE/SuperGLUE fine-tuning; offered with "no explanation… other than divine benevolence"
