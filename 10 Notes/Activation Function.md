@@ -12,6 +12,36 @@ The element-wise non-linear function $\sigma(\cdot)$ applied after a layer's lin
 
 ![[activation-functions.png]]
 
+## ⚡ Quick summary — who uses what, and why
+
+| Activation | Introduced by | Flagship adopters | Why they chose it |
+| --- | --- | --- | --- |
+| ReLU | Nair & Hinton 2010 (see [[Deep Learning using Rectified Linear Units (2018)\|attribution]]) | **AlexNet, VGG, ResNet, Inception**; edge/mobile | Non-saturating gradient at zero cost; hardware-trivial |
+| Leaky ReLU | Maas et al. 2013; eval. [[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)\|Xu 2015]] | **DCGAN discriminators, YOLO/Darknet** | Dead neurons are fatal in GAN training; near-zero extra cost |
+| PReLU | He et al. 2015 | **ResNet-era ImageNet winners** | Learned slope; first above-human top-5 ImageNet |
+| ELU | [[Fast and Accurate Deep Network Learning by Exponential Linear Units (2015)\|Clevert 2015]] | niche CNNs; descendant SELU | Zero-mean push ≈ free normalization pre-batch-norm |
+| GELU | [[Gaussian Error Linear Units (2016)\|Hendrycks & Gimpel 2016]] | **BERT, GPT-1/2/3, ViT, Swin** | Smooth gradient flow at transformer depth; wins across modalities |
+| Swish / h-swish | [[Searching for Activation Functions (2017)\|Ramachandran 2017]] | **EfficientNet, MobileNetV3** (h-swish) | Search-validated gains on deep CNNs; h-swish = cheap mobile approx. |
+| Mish | [[Mish - A Self Regularized Non-Monotonic Activation Function (2020)\|Misra 2020]] | **YOLOv4/v5-era detectors** | Best-in-class COCO detection gains |
+| SwiGLU / GEGLU | [[GLU Variants Improve Transformer (2020)\|Shazeer 2020]] | **PaLM, LLaMA 1–3, Mistral, Qwen, Gemma** | Free perplexity win at fixed params; faster convergence ([[The Devil is in the Condition Numbers (2026)\|NTK view]]) |
+
+### Which is better for which setting
+
+Per the cross-benchmark survey ([[Activation Functions in Deep Learning - A Comprehensive Survey and Benchmark (2021)|Dubey 2021]]), **no activation wins everywhere** — the choice interacts with architecture, depth, and scale:
+
+- **Small CNNs / small datasets** → **ReLU**. Smooth variants show no reliable gain here ([[Benchmarking Comparison of Swish vs Other Activation Functions on CIFAR-10 (2019)|Szandala 2019]]) and cost more.
+- **Deep vision CNNs at scale** (ImageNet+) → **Swish or Mish**; gains grow with depth.
+- **Object detection** → **Mish** (COCO evidence) or Leaky ReLU for speed.
+- **GANs** → **Leaky ReLU** in discriminators — dying neurons are catastrophic there.
+- **Transformers (encoder / vision)** → **GELU** — the BERT/ViT standard.
+- **LLM-scale transformers** → **SwiGLU FFN** — the current default, effectively free.
+- **Mobile / edge / FPGA** → **ReLU or h-swish** — transcendentals (erf, exp) are the enemy of cheap hardware.
+- **Output layers** are a different question: sigmoid/softmax for probabilities, linear for regression — the saturating functions live on here.
+
+**The arc in one line:** bounded & smooth → unbounded & cheap (ReLU) → smooth again but non-saturating (GELU/Swish) → gated and learned (SwiGLU).
+
+---
+
 ## The design tensions
 
 Every activation is a compromise between:
@@ -105,34 +135,6 @@ $$\text{SwiGLU}(x) = (W_1 x) \otimes \text{Swish}(W_2 x)$$
 **Results:** at fixed parameter count, GEGLU/SwiGLU beat both ReLU and GELU transformer FFNs on pre-training perplexity and GLUE/SuperGLUE — offered famously with "no explanation… other than divine benevolence." The explanation arrived later: gating reshapes the NTK spectrum (smaller condition number → **faster optimization**, not better generalization) ([[The Devil is in the Condition Numbers (2026)|Lyu et al. 2026]]).
 
 ---
-
-## Results & adoption — who uses what, and why
-
-| Activation | Introduced by | Flagship adopters | Why they chose it |
-|---|---|---|---|
-| ReLU | Nair & Hinton 2010 (see [[Deep Learning using Rectified Linear Units (2018)|attribution]]) | **AlexNet, VGG, ResNet, Inception**; edge/mobile inference | Non-saturating gradient at zero cost; hardware-trivial |
-| Leaky ReLU | Maas et al. 2013; eval. [[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)|Xu 2015]] | **DCGAN discriminators, YOLO/Darknet** | Dead neurons are fatal in GAN training; near-zero extra cost |
-| PReLU | He et al. 2015 | **ResNet-era ImageNet winners** | Learned slope; first above-human top-5 ImageNet |
-| ELU | [[Fast and Accurate Deep Network Learning by Exponential Linear Units (2015)|Clevert 2015]] | niche CNNs; descendant SELU | Zero-mean push ≈ free normalization pre-batch-norm |
-| GELU | [[Gaussian Error Linear Units (2016)|Hendrycks & Gimpel 2016]] | **BERT, GPT-1/2/3, ViT, Swin** | Smooth gradient flow at transformer depth; empirical wins across modalities |
-| Swish / h-swish | [[Searching for Activation Functions (2017)|Ramachandran 2017]] | **EfficientNet, MobileNetV3** (h-swish) | Search-validated gains on deep CNNs; h-swish = cheap mobile approximation |
-| Mish | [[Mish - A Self Regularized Non-Monotonic Activation Function (2020)|Misra 2020]] | **YOLOv4/v5-era detectors** | Best-in-class COCO detection gains |
-| SwiGLU / GEGLU | [[GLU Variants Improve Transformer (2020)|Shazeer 2020]] | **PaLM, LLaMA 1–3, Mistral, Qwen, Gemma** | Free perplexity win at fixed params; faster convergence ([[The Devil is in the Condition Numbers (2026)|NTK view]]) |
-
-### Which is better for which setting
-
-Per the cross-benchmark survey ([[Activation Functions in Deep Learning - A Comprehensive Survey and Benchmark (2021)|Dubey 2021]]) and the papers above, **no activation wins everywhere** — the choice interacts with architecture, depth, and scale:
-
-- **Small CNNs / small datasets** → **ReLU**. Smooth variants show no reliable gain here ([[Benchmarking Comparison of Swish vs Other Activation Functions on CIFAR-10 (2019)|Szandala 2019]]) and cost more.
-- **Deep vision CNNs at scale** (ImageNet+) → **Swish or Mish**; gains grow with depth.
-- **Object detection** → **Mish** (COCO evidence) or Leaky ReLU for speed.
-- **GANs** → **Leaky ReLU** in discriminators — dying neurons are catastrophic there.
-- **Transformers (encoder / vision)** → **GELU** — the BERT/ViT standard.
-- **LLM-scale transformers** → **SwiGLU FFN** — the current default, effectively free.
-- **Mobile / edge / FPGA** → **ReLU or h-swish** — transcendentals (erf, exp) are the enemy of cheap hardware.
-- **Output layers** are a different question: sigmoid/softmax for probabilities, linear for regression — the saturating functions live on here.
-
-**The arc in one line:** bounded & smooth → unbounded & cheap (ReLU) → smooth again but non-saturating (GELU/Swish) → gated and learned (SwiGLU).
 
 ## Related
 
