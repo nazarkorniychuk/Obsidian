@@ -10,6 +10,8 @@ aliases: [Nonlinearity, Activation]
 
 The element-wise non-linear function $\sigma(\cdot)$ applied after a layer's linear transform. It is the *only* source of non-linearity in a [[Neural Network]] — without it, any stack of layers collapses into a single [[Matrix Multiplication]], and depth buys nothing. The choice of activation shapes gradient flow through [[Backpropagation]], and therefore how trainable a deep network is.
 
+![[activation-functions.png]]
+
 ## The design tensions
 
 Every activation is a compromise between:
@@ -29,7 +31,7 @@ $$\text{sigmoid}(x) = \frac{1}{1+e^{-x}} \qquad \tanh(x)$$
 
 **Motivation:** biological plausibility (firing rate between bounds) and smooth differentiability, back when networks were shallow.
 
-**The fatal flaw:** both *saturate* — for large $|x|$ the derivative is $\approx 0$. In a deep network the chain-rule product of many near-zero derivatives → **vanishing gradients**; early layers stop learning. Empirically, sigmoid networks fail to converge at all in deep convolutional tasks, performing at chance level [1]. Tanh survives longer (it's zero-centered) but saturates just the same.
+**The fatal flaw:** both *saturate* — for large $|x|$ the derivative is $\approx 0$. In a deep network the chain-rule product of many near-zero derivatives → **vanishing gradients**; early layers stop learning. Empirically, sigmoid networks fail to converge at all in deep convolutional tasks, performing at chance level ([[Deep Learning using Rectified Linear Units (2018)|Agarap 2018, rev.]]).
 
 **Verdict:** dead for hidden layers; sigmoid survives only as a *gate* (attention scores, LSTM gates, and inside Swish/GLU below).
 
@@ -39,24 +41,24 @@ $$\text{sigmoid}(x) = \frac{1}{1+e^{-x}} \qquad \tanh(x)$$
 
 $$\text{ReLU}(x) = \max(0, x)$$
 
-Introduced into deep learning by Nair & Hinton (2010) — a frequently mis-cited origin that the literature has had to formally correct [1].
+Introduced into deep learning by **Nair & Hinton (2010)** — a frequently mis-cited origin that the literature had to formally correct ([[Deep Learning using Rectified Linear Units (2018)]]).
 
 **Motivation:** kill vanishing gradients. For $x>0$ the derivative is exactly 1 — the identity — so gradients pass through any number of layers undiminished.
 
-**Intuition:** each neuron is a switch: on (linear) or off (zero). A ReLU network is a piecewise-linear function — it carves input space into an enormous number of linear regions, and depth grows that number super-exponentially: there exist functions a $k^2$-layer ReLU net represents with $k^3$ units that any $k$-layer net needs $\sim \frac{1}{2}k^{k+1}$ units to match [2]. Theory also confirms ReLU nets are universal approximators and explains the popularity via spline-theoretic optimality [3].
+**Intuition:** each neuron is a switch: on (linear) or off (zero). A ReLU network is a piecewise-linear function — it carves input space into an enormous number of linear regions, and depth grows that number super-exponentially: there exist functions a deep net represents compactly that any shallow net needs $\sim \frac{1}{2}k^{k+1}$ units to match ([[Understanding Deep Neural Networks with Rectified Linear Units (2016)|Arora et al. 2016]]). Spline theory additionally shows ReLU solutions are the *natural* piecewise-linear splines of regularized network training — a principled optimum, not a hack ([[The Role of Neural Network Activation Functions (2019)|Parhi & Nowak 2019]]).
 
-**Results:** enabler of the 2012 deep-learning breakthrough (AlexNet); still the default in many CNNs. Cheapest possible non-linearity.
+**Results & adoption:** the enabler of AlexNet (2012) and the entire CNN era — VGG, ResNet, Inception all default to ReLU. Cheapest possible non-linearity, and still the hardware-friendly choice for edge deployment.
 
-**The flaw — dying ReLU:** a neuron pushed into the negative region for all inputs has zero gradient *forever* and never recovers; the neuron-death mechanism has been analyzed formally [4].
+**The flaw — dying ReLU:** a neuron pushed into the negative region for all inputs has zero gradient *forever* and never recovers; the death mechanism is initialization-dependent and formally analyzed in [[ReLU Neural Networks and Their Training (2025)|Luo et al. 2025]].
 
 ## The ReLU repair family: Leaky ReLU, PReLU, ELU
 
 **Motivation:** keep ReLU's non-saturating positive side, fix the dead negative side.
 
-- **Leaky ReLU** — small fixed slope $\alpha x$ for $x<0$. **PReLU** — learn $\alpha$. A systematic evaluation found that *any* non-zero negative slope consistently beats plain ReLU — evidence *against* the belief that ReLU's sparsity is what makes it good [5].
-- **ELU** — $\alpha(e^x - 1)$ for $x<0$: smooth, saturates to $-\alpha$. **Motivation:** push mean activations toward zero (a cheap substitute for batch norm's centering effect, reducing "bias shift"), while the negative saturation makes the off-state noise-robust. **Results:** faster learning and better generalization than ReLU/Leaky ReLU on networks ≥5 layers; on CIFAR-100, ELU nets beat ReLU+batch-norm nets [6].
+- **Leaky ReLU** ($\max(\alpha x, x)$, fixed small $\alpha$) and **PReLU** (learned $\alpha$): the systematic evaluation in [[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)|Xu et al. 2015]] found *any* non-zero negative slope consistently beats plain ReLU — evidence **against** the belief that ReLU's sparsity is what makes it good. Their randomized RReLU generalized best on small data (75.68% CIFAR-100). Adopted by: **GAN discriminators (DCGAN), YOLO/Darknet backbones** (Leaky); PReLU powered the first above-human-level ImageNet top-5 result (He et al. 2015).
+- **ELU** ($x$ / $\alpha(e^x{-}1)$): pushes mean activations toward zero — batch norm's centering effect for free — and its negative saturation gives a noise-robust off-state. Results: faster learning and better generalization than ReLU on nets ≥ 5 layers; on CIFAR-100, ELU nets **beat ReLU + batch norm** ([[Fast and Accurate Deep Network Learning by Exponential Linear Units (2015)|Clevert et al. 2015]]).
 
-**Verdict:** real but modest gains; none displaced ReLU in practice — the gains were too inconsistent to pay the switching cost [7].
+**Verdict:** real but modest gains; none displaced ReLU — too inconsistent to pay the switching cost, per the field-wide benchmark [[Activation Functions in Deep Learning - A Comprehensive Survey and Benchmark (2021)|Dubey et al. 2021]].
 
 ---
 
@@ -68,21 +70,27 @@ The modern default family. Common form: $x \cdot g(x)$ — the input multiplied 
 
 $$\text{GELU}(x) = x \cdot \Phi(x)$$
 
-where $\Phi$ is the standard Gaussian CDF [8].
+where $\Phi$ is the standard Gaussian CDF.
 
-**Motivation/intuition:** the beautiful one — GELU is the *expected value of a stochastic regularizer* that randomly multiplies each input by 0 or 1 with probability $\Phi(x)$: dropout-like noise whose keep-probability depends on the input's value. Deterministically averaging that noise gives a smooth, **non-monotonic** curve (it dips slightly below zero around $x\approx-0.6$) that weights inputs by value rather than gating by sign [8, 9]. Equivalently: a hard gate with a Gaussian-random threshold [10].
+**Motivation/intuition:** the beautiful one — GELU is the *expected value of a stochastic regularizer* that multiplies each input by 0 or 1 with probability $\Phi(x)$: dropout whose keep-probability depends on the input's value. Averaging that noise gives a smooth, **non-monotonic** curve (dips to ≈ −0.17 near $x \approx -0.75$) that weights inputs by value rather than gating by sign ([[Gaussian Error Linear Units (2016)|Hendrycks & Gimpel 2016]]). An equivalent modern view: a hard gate with a Gaussian-random threshold ([[A Structural Interpretation of GELU (2026)|Rossi 2026]]).
 
-**Results:** outperformed ReLU and ELU across vision, NLP, and speech tasks in the original evaluation [8], with later independent analysis confirming its edge on CIFAR-10/100 and STL-10 [11]. **Adopted by BERT, GPT-2/3, ViT** — the transformer-era default.
+**Results:** beat ReLU and ELU across every task tested — vision, NLP, speech ([[Gaussian Error Linear Units (2016)]]); independently replicated on residual CNNs seven years later ([[Mathematical Analysis and Performance Evaluation of GELU (2023)|Lee 2023]]).
 
 ### Swish / SiLU
 
 $$\text{Swish}(x) = x \cdot \text{sigmoid}(\beta x)$$
 
-**Motivation:** found by *automated search* (exhaustive + RL) over a space of candidate functions — the search independently converged on the same shape as GELU [12]. With $\beta=1$ it's called SiLU; GELU and SiLU are near-identical curves (both are members of one "threshold-transmission" family [10]).
+**Motivation:** found by *automated search* (exhaustive + RL) — and the search independently converged on essentially GELU's shape, strong evidence that smooth-self-gated is a real optimum ([[Searching for Activation Functions (2017)|Ramachandran et al. 2017]]). With $\beta=1$ it's SiLU. Both belong to one "threshold-transmission" family with ReLU and hard-swish, differing only in the gate's noise distribution ([[A Structural Interpretation of GELU (2026)]]).
 
-**Results:** replacing ReLU with Swish gave +0.9% top-1 on ImageNet for Mobile NASNet-A and +0.6% for Inception-ResNet-v2, with gains growing on deeper models [12, 13]. Caveat: gains are not universal — some replications on smaller settings found no improvement over ReLU [14].
+**Results:** +0.9% ImageNet top-1 on Mobile NASNet-A, +0.6% on Inception-ResNet-v2, gains growing with depth ([[Searching for Activation Functions (2017)]]). **Caveat:** an independent small-scale replication found *no* gain over ReLU on CIFAR-10 ([[Benchmarking Comparison of Swish vs Other Activation Functions on CIFAR-10 (2019)|Szandala 2019]]) — the advantage is a deep-and-large-scale phenomenon.
 
-**Why smooth+non-monotonic wins (intuition):** no dead zone (gradient exists everywhere), the slight negative dip adds expressivity, and smoothness stabilizes gradient flow near zero — collectively worth ~0.5–1% accuracy, which at modern scale is decisive. Followers in this family: **Mish**, $x\tanh(\text{softplus}(x))$, which beat both ReLU and Swish on ImageNet and COCO detection [15].
+### Mish
+
+$$\text{Mish}(x) = x \tanh(\text{softplus}(x))$$
+
+Same family, slightly wider negative dip, argued to self-regularize the loss landscape. ≈ +1% ImageNet top-1 over ReLU on ResNet-50; +2.1% AP₅₀ on YOLOv4/MS-COCO over Leaky ReLU ([[Mish - A Self Regularized Non-Monotonic Activation Function (2020)|Misra 2020]]).
+
+**Why smooth + non-monotonic wins (intuition):** no dead zone (gradient exists everywhere), the slight negative dip adds expressivity, and smoothness stabilizes optimization — collectively worth ~0.5–1% accuracy, decisive at scale.
 
 ---
 
@@ -90,27 +98,39 @@ $$\text{Swish}(x) = x \cdot \text{sigmoid}(\beta x)$$
 
 Not a drop-in activation but a redesign of the [[Feedforward Network]] layer itself — see [[GLU Variants]].
 
-$$\text{GLU}(x) = (W_1 x) \otimes \sigma(W_2 x) \qquad \text{SwiGLU}(x) = (W_1 x) \otimes \text{Swish}(W_2 x)$$
+$$\text{SwiGLU}(x) = (W_1 x) \otimes \text{Swish}(W_2 x)$$
 
-**Motivation:** instead of gating each scalar by itself, compute *two* linear projections and let one gate the other — a learned, content-dependent gate [16].
+**Motivation:** instead of each scalar gating itself, compute *two* linear projections and let one gate the other — a learned, content-dependent gate ([[GLU Variants Improve Transformer (2020)|Shazeer 2020]]).
 
-**Results:** Shazeer tested GLU variants in the transformer FFN and found consistent quality improvements over both ReLU and GELU, with SwiGLU/GEGLU the best [16] — famously offering "no explanation… other than divine benevolence." A proposed actual explanation: gating reshapes the NTK spectrum (smaller condition number → faster optimization), i.e. the benefit is *trainability*, not generalization [17].
-
-**Adopted by LLaMA, PaLM, Mistral, Qwen — SwiGLU is the current LLM default.** Note the shift: from gating *within* a token's scalar to mixing between two projections — the activation stopped being element-wise self-contained.
+**Results:** at fixed parameter count, GEGLU/SwiGLU beat both ReLU and GELU transformer FFNs on pre-training perplexity and GLUE/SuperGLUE — offered famously with "no explanation… other than divine benevolence." The explanation arrived later: gating reshapes the NTK spectrum (smaller condition number → **faster optimization**, not better generalization) ([[The Devil is in the Condition Numbers (2026)|Lyu et al. 2026]]).
 
 ---
 
-## Cheat sheet
+## Results & adoption — who uses what, and why
 
-| Activation | Formula | Killer feature | Fatal flaw | Used in |
-|---|---|---|---|---|
-| sigmoid/tanh | $\frac{1}{1+e^{-x}}$ | smooth, bounded | vanishing gradients [1] | gates only |
-| ReLU | $\max(0,x)$ | cheap, gradient=1 | dying neurons [4] | CNNs |
-| Leaky/PReLU | $\max(\alpha x, x)$ | no dead zone [5] | marginal gains | some CNNs |
-| ELU | $x$ / $\alpha(e^x{-}1)$ | zero-mean push [6] | exp cost | niche |
-| GELU | $x\Phi(x)$ | smooth, stochastic interp. [8] | erf cost | BERT, GPT, ViT |
-| Swish/SiLU | $x\,\sigma(\beta x)$ | search-found, ≈GELU [12] | sigmoid cost | EfficientNet |
-| SwiGLU | $(W_1x)\otimes\text{Swish}(W_2x)$ | best LLM quality [16] | 3 matrices not 2 | LLaMA, PaLM, Mistral |
+| Activation | Introduced by | Flagship adopters | Why they chose it |
+|---|---|---|---|
+| ReLU | Nair & Hinton 2010 (see [[Deep Learning using Rectified Linear Units (2018)|attribution]]) | **AlexNet, VGG, ResNet, Inception**; edge/mobile inference | Non-saturating gradient at zero cost; hardware-trivial |
+| Leaky ReLU | Maas et al. 2013; eval. [[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)|Xu 2015]] | **DCGAN discriminators, YOLO/Darknet** | Dead neurons are fatal in GAN training; near-zero extra cost |
+| PReLU | He et al. 2015 | **ResNet-era ImageNet winners** | Learned slope; first above-human top-5 ImageNet |
+| ELU | [[Fast and Accurate Deep Network Learning by Exponential Linear Units (2015)|Clevert 2015]] | niche CNNs; descendant SELU | Zero-mean push ≈ free normalization pre-batch-norm |
+| GELU | [[Gaussian Error Linear Units (2016)|Hendrycks & Gimpel 2016]] | **BERT, GPT-1/2/3, ViT, Swin** | Smooth gradient flow at transformer depth; empirical wins across modalities |
+| Swish / h-swish | [[Searching for Activation Functions (2017)|Ramachandran 2017]] | **EfficientNet, MobileNetV3** (h-swish) | Search-validated gains on deep CNNs; h-swish = cheap mobile approximation |
+| Mish | [[Mish - A Self Regularized Non-Monotonic Activation Function (2020)|Misra 2020]] | **YOLOv4/v5-era detectors** | Best-in-class COCO detection gains |
+| SwiGLU / GEGLU | [[GLU Variants Improve Transformer (2020)|Shazeer 2020]] | **PaLM, LLaMA 1–3, Mistral, Qwen, Gemma** | Free perplexity win at fixed params; faster convergence ([[The Devil is in the Condition Numbers (2026)|NTK view]]) |
+
+### Which is better for which setting
+
+Per the cross-benchmark survey ([[Activation Functions in Deep Learning - A Comprehensive Survey and Benchmark (2021)|Dubey 2021]]) and the papers above, **no activation wins everywhere** — the choice interacts with architecture, depth, and scale:
+
+- **Small CNNs / small datasets** → **ReLU**. Smooth variants show no reliable gain here ([[Benchmarking Comparison of Swish vs Other Activation Functions on CIFAR-10 (2019)|Szandala 2019]]) and cost more.
+- **Deep vision CNNs at scale** (ImageNet+) → **Swish or Mish**; gains grow with depth.
+- **Object detection** → **Mish** (COCO evidence) or Leaky ReLU for speed.
+- **GANs** → **Leaky ReLU** in discriminators — dying neurons are catastrophic there.
+- **Transformers (encoder / vision)** → **GELU** — the BERT/ViT standard.
+- **LLM-scale transformers** → **SwiGLU FFN** — the current default, effectively free.
+- **Mobile / edge / FPGA** → **ReLU or h-swish** — transcendentals (erf, exp) are the enemy of cheap hardware.
+- **Output layers** are a different question: sigmoid/softmax for probabilities, linear for regression — the saturating functions live on here.
 
 **The arc in one line:** bounded & smooth → unbounded & cheap (ReLU) → smooth again but non-saturating (GELU/Swish) → gated and learned (SwiGLU).
 
@@ -122,25 +142,23 @@ $$\text{GLU}(x) = (W_1 x) \otimes \sigma(W_2 x) \qquad \text{SwiGLU}(x) = (W_1 x
 - Derivative behavior directly determines [[Backpropagation]] gradient flow (vanishing/dying gradients)
 - Sigmoid survives as the *gate* in attention scores and GLU-style gating
 
-## References
+## Sources
 
-1. [Deep Learning using Rectified Linear Units (ReLU)](https://consensus.app/papers/details/b9cb4589c00257e38a1ad9dfb68688f5/?utm_source=claude_desktop) — Agarap (rev. w/ historical correction crediting Nair & Hinton 2010), DOI: 10.48550/arxiv.1803.08375
-2. [Understanding Deep Neural Networks with Rectified Linear Units](https://consensus.app/papers/details/4a32bf9d9f235821be012619e1a305f0/?utm_source=claude_desktop) — Arora et al., 2016, DOI: 10.48550/arxiv.1611.01491
-3. [The Role of Neural Network Activation Functions](https://consensus.app/papers/details/956924c9cc3a5e0b8aac84222daccf4e/?utm_source=claude_desktop) — Parhi & Nowak, 2019, DOI: 10.1109/lsp.2020.3027517
-4. [ReLU Neural Networks and Their Training](https://consensus.app/papers/details/bb0f8d2bab9254159b215b36d638c908/?utm_source=claude_desktop) — Luo et al., 2025, DOI: 10.3390/math14010039
-5. [Empirical Evaluation of Rectified Activations in Convolutional Network](https://consensus.app/papers/details/1e20b8cfa3c15b1883a28a7d4a322104/?utm_source=claude_desktop) — Xu et al., 2015, DOI: 10.48550/arxiv.1505.00853
-6. [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](https://consensus.app/papers/details/046aee25d6995601b4bb4d619c97fa2d/?utm_source=claude_desktop) — Clevert, Unterthiner & Hochreiter, 2015, DOI: 10.48550/arxiv.1511.07289
-7. [Activation functions in deep learning: A comprehensive survey and benchmark](https://consensus.app/papers/details/adb6f177ec36516981daac7d3e9ea3d5/?utm_source=claude_desktop) — Dubey et al., 2021, DOI: 10.1016/j.neucom.2022.06.111
-8. [Gaussian Error Linear Units (GELUs)](https://consensus.app/papers/details/fc847c9b3707508aae7f2859f66a47a9/?utm_source=claude_desktop) — Hendrycks & Gimpel, 2016, DOI: 10.48550/arxiv.1606.08415
-9. [Bridging Nonlinearities and Stochastic Regularizers with Gaussian Error Linear Units](https://consensus.app/papers/details/f3478062c8535adaa13d3c9bc0095a21/?utm_source=claude_desktop) — Hendrycks & Gimpel, 2016
-10. [A Structural Interpretation of GELU and Threshold-Transmission Activations](https://consensus.app/papers/details/b71a5bf56ad45e55b4b95c2e4175a06b/?utm_source=claude_desktop) — Rossi, 2026, DOI: 10.48550/arxiv.2607.03664
-11. [Mathematical Analysis and Performance Evaluation of the GELU Activation Function in Deep Learning](https://consensus.app/papers/details/c79409ece0f25b02a0a93a74be510eae/?utm_source=claude_desktop) — Lee, 2023, DOI: 10.1155/2023/4229924
-12. [Searching for Activation Functions](https://consensus.app/papers/details/0893b159d5875de2a7e4467b88054675/?utm_source=claude_desktop) — Ramachandran, Zoph & Le, 2017, DOI: 10.48550/arxiv.1710.05941
-13. [Swish: a Self-Gated Activation Function](https://consensus.app/papers/details/e584e1066bee56d68303e85d852854f6/?utm_source=claude_desktop) — Ramachandran et al., 2017, DOI: 10.48550/arxiv.1710.05941
-14. [Benchmarking Comparison of Swish vs. Other Activation Functions on CIFAR-10](https://consensus.app/papers/details/af57fe91e93c5f3a91ae52857f22a5ad/?utm_source=claude_desktop) — Szandala, 2019, DOI: 10.1007/978-3-030-19501-4_49
-15. [Mish: A Self Regularized Non-Monotonic Activation Function](https://consensus.app/papers/details/45b489ac1e2a5e44a7591c1e932bcc1e/?utm_source=claude_desktop) — Misra, 2020, DOI: 10.5244/c.34.191
-16. [GLU Variants Improve Transformer](https://consensus.app/papers/details/a61336c71bd8535aa0f6696f4a7a7bda/?utm_source=claude_desktop) — Shazeer, 2020, DOI: 10.48550/arxiv.2002.05202
-17. [The Devil is in the Condition Numbers: Why is GLU Better than non-GLU Structure?](https://consensus.app/papers/details/7eb498afe2f45d0aa3f490928875e399/?utm_source=claude_desktop) — Lyu et al., 2026, DOI: 10.48550/arxiv.2605.20749
+- [[Deep Learning using Rectified Linear Units (2018)]] — ReLU attribution + sigmoid-collapse evidence
+- [[Understanding Deep Neural Networks with Rectified Linear Units (2016)]] — depth-separation theory
+- [[The Role of Neural Network Activation Functions (2019)]] — spline-theoretic justification of ReLU
+- [[ReLU Neural Networks and Their Training (2025)]] — dying-ReLU mechanism
+- [[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)]] — Leaky/PReLU/RReLU; anti-sparsity finding
+- [[Fast and Accurate Deep Network Learning by Exponential Linear Units (2015)]] — ELU
+- [[Gaussian Error Linear Units (2016)]] — GELU
+- [[Mathematical Analysis and Performance Evaluation of GELU (2023)]] — independent GELU replication
+- [[A Structural Interpretation of GELU (2026)]] — threshold-transmission unification
+- [[Searching for Activation Functions (2017)]] — Swish
+- [[Benchmarking Comparison of Swish vs Other Activation Functions on CIFAR-10 (2019)]] — failed Swish replication
+- [[Mish - A Self Regularized Non-Monotonic Activation Function (2020)]] — Mish
+- [[GLU Variants Improve Transformer (2020)]] — SwiGLU
+- [[The Devil is in the Condition Numbers (2026)]] — why GLU wins (NTK)
+- [[Activation Functions in Deep Learning - A Comprehensive Survey and Benchmark (2021)]] — the neutral referee
 
 ---
 Part of the [[Transformer]] cluster
