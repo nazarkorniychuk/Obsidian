@@ -1,1 +1,7 @@
-{}
+{
+  "attachmentFolderPath": "Attachments",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "00 Inbox",
+  "alwaysUpdateLinks": true,
+  "useMarkdownLinks": false
+}
