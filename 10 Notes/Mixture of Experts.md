@@ -1,9 +1,11 @@
 ---
 type: concept
-topics: [deep-learning]
+topics:
+  - deep-learning
 status: seedling
 created: 2026-08-22
-aliases: [MoE]
+aliases:
+  - MoE
 ---
 
 # Mixture of Experts
