@@ -16,9 +16,9 @@ Element-wise non-linear function $\sigma(\cdot)$ after a layer's linear transfor
 
 | Activation | Introduced by | Flagship adopters | Reason |
 | --- | --- | --- | --- |
-| ReLU | Nair & Hinton 2010 (see [[Deep Learning using Rectified Linear Units (2018)\|attribution]]) | **AlexNet, VGG, ResNet, Inception**; edge/mobile | Non-saturating gradient at zero cost; hardware-trivial |
-| Leaky ReLU | Maas et al. 2013; eval. [[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)\|Xu 2015]] | **DCGAN discriminators, YOLO/Darknet** | Dead neurons fatal in GAN training; near-zero extra cost |
-| PReLU | He et al. 2015 | **ResNet-era ImageNet winners** | Learned slope; first above-human top-5 ImageNet |
+| ReLU | [[Rectified Linear Units Improve Restricted Boltzmann Machines (2010)\|Nair & Hinton 2010]] + [[Deep Sparse Rectifier Neural Networks (2011)\|Glorot 2011]] (attribution: [[Deep Learning using Rectified Linear Units (2018)\|Agarap 2018]]) | **AlexNet, VGG, ResNet, Inception**; edge/mobile | Non-saturating gradient at zero cost; hardware-trivial |
+| Leaky ReLU | [[Rectifier Nonlinearities Improve Neural Network Acoustic Models (2013)\|Maas et al. 2013]]; eval. [[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)\|Xu 2015]] | **DCGAN discriminators, YOLO/Darknet** | Dead neurons fatal in GAN training; near-zero extra cost |
+| PReLU | [[Delving Deep into Rectifiers (2015)\|He et al. 2015]] | **ResNet-era ImageNet winners** | Learned slope; first above-human top-5 ImageNet |
 | ELU | [[Fast and Accurate Deep Network Learning by Exponential Linear Units (2015)\|Clevert 2015]] | niche CNNs; descendant SELU | Zero-mean push ≈ free normalization pre-batch-norm |
 | GELU | [[Gaussian Error Linear Units (2016)\|Hendrycks & Gimpel 2016]] | **BERT, GPT-1/2/3, ViT, Swin** | Wins across modalities at transformer depth |
 | Swish / h-swish | [[Searching for Activation Functions (2017)\|Ramachandran 2017]] | **EfficientNet, MobileNetV3** (h-swish) | Search-validated gains on deep CNNs; h-swish = cheap mobile approx. |
@@ -58,7 +58,7 @@ $$\text{ReLU}(x) = \max(0, x)$$
 
 ![[act-relu.png|420]]
 
-- Origin: Nair & Hinton 2010 — widely mis-cited; record corrected in [[Deep Learning using Rectified Linear Units (2018)]]
+- Origin: [[Rectified Linear Units Improve Restricted Boltzmann Machines (2010)|Nair & Hinton 2010]] (RBMs; preserves relative intensities across layers) + [[Deep Sparse Rectifier Neural Networks (2011)|Glorot 2011]] (deep supervised nets without pre-training) — widely mis-cited; record corrected in [[Deep Learning using Rectified Linear Units (2018)]]
 - Derivative = 1 for $x>0$: gradients pass through arbitrary depth undiminished → enabled AlexNet 2012 and the CNN era
 - **Expressivity results:** depth separation is super-exponential — functions computable at size $k^3$ with $k^2$ layers require $\sim \frac{1}{2}k^{k+1}$ nodes at $k$ layers ([[Understanding Deep Neural Networks with Rectified Linear Units (2016)|Arora 2016]]); ReLU solutions coincide with optimal piecewise-linear splines of regularized training, same framework justifies weight decay and skip connections ([[The Role of Neural Network Activation Functions (2019)|Parhi & Nowak 2019]])
 - **Failure mode:** dying ReLU — neuron negative on the whole data distribution has zero gradient permanently; initialization-dependent, formalized in [[ReLU Neural Networks and Their Training (2025)|Luo 2025]]
@@ -68,9 +68,9 @@ $$\text{ReLU}(x) = \max(0, x)$$
 
 ![[act-leaky.png|420]]
 
-- $\max(\alpha x, x)$; $\alpha$ fixed (Leaky), learned (PReLU), randomized in training (RReLU)
-- **Results** ([[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)|Xu 2015]], CIFAR-10/100): any non-zero negative slope **consistently beats plain ReLU** → refutes the sparsity-is-the-key hypothesis; Leaky/PReLU overfit on small data, RReLU best there (75.68% CIFAR-100 no ensemble)
-- PReLU: component of first above-human ImageNet top-5 (He 2015)
+- $\max(\alpha x, x)$; $\alpha$ fixed (Leaky — [[Rectifier Nonlinearities Improve Neural Network Acoustic Models (2013)|Maas 2013]]), learned (PReLU — [[Delving Deep into Rectifiers (2015)|He 2015]]), randomized in training (RReLU)
+- **Results** ([[Empirical Evaluation of Rectified Activations in Convolutional Network (2015)|Xu 2015]], CIFAR-10/100): any non-zero negative slope **consistently beats plain ReLU** → refutes the sparsity-is-the-key hypothesis (from [[Deep Sparse Rectifier Neural Networks (2011)|Glorot 2011]]); Leaky/PReLU overfit on small data, RReLU best there (75.68% CIFAR-100 no ensemble)
+- PReLU: component of the first above-human ImageNet top-5 — 4.94% error, with He initialization introduced in the same paper ([[Delving Deep into Rectifiers (2015)|He 2015]])
 - **Conclusion:** the negative-slope fix is real but small; adoption limited to niches where dead neurons are catastrophic (GANs, detection backbones)
 
 ## ELU
@@ -92,7 +92,7 @@ $$\text{GELU}(x) = x \cdot \Phi(x)$$
 - = expectation of Bernoulli($\Phi(x)$) input gating — input-adaptive dropout averaged; equivalently a hard gate with Gaussian-random threshold ([[A Structural Interpretation of GELU (2026)|Rossi 2026]])
 - Smooth, non-monotonic (min ≈ −0.17 at $x \approx -0.75$), gradient everywhere — no dead neurons
 - **Results:** beat ReLU and ELU on **every task tested** — MNIST/CIFAR vision, POS tagging, TIMIT speech ([[Gaussian Error Linear Units (2016)]]); independently confirmed on residual CNNs, CIFAR-10/100 + STL-10 ([[Mathematical Analysis and Performance Evaluation of GELU (2023)|Lee 2023]])
-- **Conclusion:** the transformer-era default (BERT, GPT, ViT); superseded only by gated FFNs at LLM scale
+- **Conclusion:** the transformer-era default — brought into transformers by [[GPT-1 - Improving Language Understanding by Generative Pre-Training (2018)|GPT-1]], cemented by [[BERT (2019)|BERT]], kept by GPT-2/3 and ViT; superseded only by gated FFNs at LLM scale
 
 ## Swish / SiLU
 
@@ -138,6 +138,12 @@ $$\text{SwiGLU}(x) = (W_1 x) \otimes \text{Swish}(W_2 x)$$
 
 ## Sources
 
+- [[Rectified Linear Units Improve Restricted Boltzmann Machines (2010)]] — ReLU origin (Nair & Hinton)
+- [[Deep Sparse Rectifier Neural Networks (2011)]] — ReLU for deep supervised nets; the sparsity hypothesis
+- [[Rectifier Nonlinearities Improve Neural Network Acoustic Models (2013)]] — Leaky ReLU origin
+- [[Delving Deep into Rectifiers (2015)]] — PReLU + He init; first above-human ImageNet
+- [[GPT-1 - Improving Language Understanding by Generative Pre-Training (2018)]] — GELU's transformer adoption
+- [[BERT (2019)]] — cemented GELU as the transformer default
 - [[Deep Learning using Rectified Linear Units (2018)]] — ReLU attribution + sigmoid-collapse evidence
 - [[Understanding Deep Neural Networks with Rectified Linear Units (2016)]] — depth-separation theory
 - [[The Role of Neural Network Activation Functions (2019)]] — spline-theoretic justification of ReLU

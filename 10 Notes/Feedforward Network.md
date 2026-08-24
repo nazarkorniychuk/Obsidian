@@ -27,19 +27,19 @@ Applied **position-wise** — each token independently, no token mixing (that's 
 
 | FFN design           | Introduced by                                                      | Flagship adopters                                        | Reason                                                                                                     |
 | -------------------- | ------------------------------------------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Dense ReLU, 4×       | [[Attention Is All You Need (2017)\|Vaswani 2017]]                 | **original Transformer, T5**                             | baseline convention (set without ablation)                                                                 |
-| Dense GELU, 4×       | GPT-1 2018; cemented by [[BERT (2019)\|Devlin 2019]]               | **BERT, GPT-1/2/3, ViT**                                 | smooth [[Activation Function]] wins at depth                                                               |
+| Dense ReLU, 4×       | [[Attention Is All You Need (2017)\|Vaswani 2017]]                 | **original Transformer, [[T5 - Exploring the Limits of Transfer Learning (2019)\|T5]]** | baseline convention (set without ablation)                                                                 |
+| Dense GELU, 4×       | [[GPT-1 - Improving Language Understanding by Generative Pre-Training (2018)\|GPT-1 2018]]; cemented by [[BERT (2019)\|Devlin 2019]] | **BERT, GPT-1/2/3, ViT**                                 | smooth [[Activation Function]] wins at depth                                                               |
 | SwiGLU, ~8/3–3.5×    | [[GLU Variants Improve Transformer (2020)\|Shazeer 2020]]          | **PaLM, LLaMA 1–3, Mistral, Qwen**                       | perplexity win at fixed params; faster convergence ([[The Devil is in the Condition Numbers (2026)\|NTK]]) |
 | GEGLU, wide (8×)     | [[GLU Variants Improve Transformer (2020)\|Shazeer 2020]]          | **Gemma**                                                | same gating family, GELU gate                                                                              |
-| MoE (routed FFN)     | [[Outrageously Large Neural Networks (2017)\|Shazeer 2017]]; scaled by [[Switch Transformers (2021)\|Fedus 2021]] | **Switch, GLaM, Mixtral 8×7B, DeepSeek-V2/V3, Qwen-MoE** | parameters ↑ without FLOPs ↑; 7× pre-training speedup at equal compute                                     |
+| [[Mixture of Experts\|MoE]] (routed FFN) | [[Outrageously Large Neural Networks (2017)\|Shazeer 2017]]; scaled by [[Switch Transformers (2021)\|Fedus 2021]] | **Switch, GLaM, Mixtral 8×7B, DeepSeek-V2/V3, Qwen-MoE** | parameters ↑ without FLOPs ↑; 7× pre-training speedup at equal compute                                     |
 | Shared / single wide | [[One Wide Feedforward Is All You Need (2023)\|Pires 2023]]        | research (MT)                                            | per-layer FFNs are redundant; one wide shared FFN beats Transformer Big                                    |
 | Masked GLU           | [[Masked Gated Linear Unit (2025)\|Tajima 2025]]                   | research                                                 | SwiGLU quality at 47% less FFN memory traffic                                                              |
 
 ## ⚡ Key numbers
 
 - **Expansion ratio $d_{ff}/d$:** convention is **2–4×** ([[Revisiting the Shape Convention of Transformer Language Models (2026)|Liao 2026]]). Dense models: 4× (Transformer, BERT, GPT-3, ViT). SwiGLU models: **8/3 ≈ 2.67×** to hold parameters equal with 3 matrices (LLaMA-7B: 11008/4096 = 2.69×); practice drifted up to 3.5× (LLaMA-2-70B, Mistral) and 8× (Gemma-7B)
-- **Parameter split per block:** attention $4d^2$ vs dense-4× FFN $8d^2$ → **FFN = 2/3**; MoE pushes it to ~95% (Mixtral: 8 experts × 3 × 3.5 = $84d^2$ vs $4d^2$)
-- **MoE active vs total:** Mixtral 8×7B — 47B total / 13B active (top-2 of 8); DeepSeek-V3 — 671B total / 37B active
+- **Parameter split per block:** attention $4d^2$ vs dense-4× FFN $8d^2$ → **FFN = 2/3**; [[Mixture of Experts|MoE]] pushes it to ~95% (Mixtral: 8 experts × 3 × 3.5 = $84d^2$ vs $4d^2$)
+- **MoE active vs total:** Mixtral 8×7B — 47B total / 13B active, top-2 of 8 ([[Mixtral of Experts (2024)|Jiang 2024]]); DeepSeek-V3 — 671B total / 37B active ([[DeepSeek-V3 Technical Report (2024)|DeepSeek-AI 2024]])
 - **Gating cost:** GLU family needs **2× the memory reads** of dense FFN at inference (two matrices for gate+value) ([[Masked Gated Linear Unit (2025)|Tajima 2025]])
 
 ![[ffn-expansion-ratio.png]]
@@ -56,7 +56,7 @@ Applied **position-wise** — each token independently, no token mixing (that's 
 
 ## Expansion ratio $d_{ff}/d$
 
-- Narrow-wide-narrow, ratio 2–4, is the near-universal convention ([[Revisiting the Shape Convention of Transformer Language Models (2026)|Liao 2026]]); outlier: T5-11B used 64× ($d_{ff}=65536$, $d=1024$)
+- Narrow-wide-narrow, ratio 2–4, is the near-universal convention ([[Revisiting the Shape Convention of Transformer Language Models (2026)|Liao 2026]]); outlier: T5-11B used 64× ($d_{ff}=65536$, $d=1024$) ([[T5 - Exploring the Limits of Transfer Learning (2019)|Raffel 2019]])
 - SwiGLU accounting: 3 matrices instead of 2 → param-matched width is $\tfrac{2}{3} \cdot 4 = 8/3 \approx 2.67\times$ ([[GLU Variants Improve Transformer (2020)|Shazeer 2020]]'s protocol); LLaMA-7B implements exactly this (2.69×)
 - **Results against the convention:** deeper **hourglass** (wide-narrow-wide) sub-MLP stacks beat conventional FFNs up to 400M params, tie at 1B; reallocating saved FFN params to larger $d$ or to attention improves at matched budgets ([[Revisiting the Shape Convention of Transformer Language Models (2026)|Liao 2026]])
 - **Conclusion:** ratio within 2–4 is a weak lever at scale; the attention:FFN split and FFN shape are the under-explored levers
@@ -92,9 +92,9 @@ graph LR
     S --> y[output]
 ```
 
-- Replace the single FFN with $N$ expert FFNs + a learned router selecting top-$k$ per token → **parameters scale without FLOPs scaling**; only the FFN is worth routing because that's where the parameters are (chart above)
+- [[Mixture of Experts]]: replace the single FFN with $N$ expert FFNs + a learned router selecting top-$k$ per token → **parameters scale without FLOPs scaling**; only the FFN is worth routing because that's where the parameters are (chart above)
 - **Results** ([[Switch Transformers (2021)|Fedus 2021]]): top-1 routing suffices; **7× pre-training speedup** vs T5-Base at equal FLOPs; 1.6T-parameter model trained, 4× speedup over T5-XXL; gains hold across 101 languages; needs auxiliary load-balancing loss + selective precision for stability
-- **Adopters:** GLaM, **Mixtral 8×7B** (47B/13B active), **DeepSeek-V2/V3** (V3: 671B/37B active, 256 fine-grained + shared experts, top-8), Qwen-MoE
+- **Adopters:** GLaM, **Mixtral 8×7B** — 47B/13B active, matches/beats LLaMA-2-70B and GPT-3.5 ([[Mixtral of Experts (2024)|Jiang 2024]]); **DeepSeek-V2/V3** — V3: 671B/37B active, 256 fine-grained + shared experts, top-8, loss-free load balancing, 14.8T tokens for 2.788M H800 GPU-hours ([[DeepSeek-V3 Technical Report (2024)|DeepSeek-AI 2024]]); Qwen-MoE
 - **Deflationary result:** in small transformers, frozen *random* routing ≈ learned routing — the benefit comes largely from architectural sparsity, not router-learned specialization; MoE also shifts computation into attention ([[Sparsity Moves Computation (2026)|Smithline 2026]], toy scale)
 - **Conclusion:** the scaling move when parameters are cheaper than FLOPs (training) or memory is cheaper than bandwidth (inference); costs: expert-parallel communication, load-balancing losses, fine-tuning instability
 
@@ -129,6 +129,10 @@ graph LR
 - [[Switch Transformers (2021)]] — MoE at scale: 7× speedup, 1.6T params
 - [[Sparsity Moves Computation (2026)]] — random ≈ learned routing; MoE/GLU side effects (toy scale)
 - [[One Wide Feedforward Is All You Need (2023)]] — cross-layer FFN redundancy
+- [[T5 - Exploring the Limits of Transfer Learning (2019)]] — dense ReLU baseline; the 64× outlier
+- [[GPT-1 - Improving Language Understanding by Generative Pre-Training (2018)]] — first GELU transformer FFN
+- [[Mixtral of Experts (2024)]] — open-weights MoE: 47B/13B active
+- [[DeepSeek-V3 Technical Report (2024)]] — 671B/37B; fine-grained experts, loss-free balancing
 
 ---
 Part of the [[Transformer]] cluster
