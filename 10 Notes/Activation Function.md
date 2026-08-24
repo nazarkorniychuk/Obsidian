@@ -121,7 +121,7 @@ $$\text{SwiGLU}(x) = (W_1 x) \otimes \text{Swish}(W_2 x)$$
 
 ![[act-swiglu.png|420]]
 
-- FFN redesign, not element-wise: two projections, one gates the other — see [[GLU Variants]]; tested variants ReGLU/GEGLU/SwiGLU at fixed parameter count ($d_{ff}$ shrunk 2/3)
+- FFN redesign, not element-wise: two projections, one gates the other — see [[GLU Variants]]; tested variants ReGLU/GEGLU/SwiGLU at fixed parameter count ($d_{ff}$ — the FFN hidden width, see [[Feedforward Network]] — shrunk by 2/3 to pay for the third matrix)
 - **Results** ([[GLU Variants Improve Transformer (2020)|Shazeer 2020]]): GEGLU/SwiGLU **beat ReLU and GELU FFNs** on T5 pre-training perplexity and GLUE/SuperGLUE fine-tuning; offered with "no explanation… other than divine benevolence"
 - **Mechanism** ([[The Devil is in the Condition Numbers (2026)|Lyu 2026]], NTK regime): gating shrinks NTK condition number → **faster optimization**; effect on generalization gap ≈ nil (ViT, GPT-2) — the win is trainability at fixed compute
 - **Conclusion:** de-facto LLM FFN standard (PaLM, LLaMA, Mistral, Qwen, Gemma)

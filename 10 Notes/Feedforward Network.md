@@ -12,6 +12,11 @@ The per-token MLP inside every [[Transformer]] block:
 
 $$\text{FFN}(x) = W_2\,\sigma(W_1 x + b_1) + b_2, \qquad W_1 \in \mathbb{R}^{d_{ff} \times d}, \; W_2 \in \mathbb{R}^{d \times d_{ff}}$$
 
+Notation:
+- $d$ (also written $d_{model}$) — the **model/embedding dimension**: the width of every token vector flowing through the residual stream (e.g. 4096 in LLaMA-7B)
+- $d_{ff}$ — the **FFN hidden (intermediate) dimension**: the width of the layer between $W_1$ and $W_2$ (e.g. 11008 in LLaMA-7B); shape is narrow → wide → narrow, so $W_1$ expands $d \to d_{ff}$ and $W_2$ projects back $d_{ff} \to d$
+- **Expansion ratio** = $d_{ff}/d$ — how much wider the hidden layer is than the residual stream
+
 Applied **position-wise** — each token independently, no token mixing (that's the [[Attention Mechanism]]'s job). Parameters: $2\,d\,d_{ff}$ dense, $3\,d\,d_{ff}$ gated ([[GLU Variants]]). At the standard 4× expansion this is **~2/3 of a transformer's non-embedding parameters** ([[Transformer Feed-Forward Layers Are Key-Value Memories (2021)|Geva 2021]]).
 
 ![[ffn-param-share.png]]
