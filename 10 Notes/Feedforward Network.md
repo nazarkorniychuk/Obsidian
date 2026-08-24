@@ -65,6 +65,15 @@ Applied **position-wise** — each token independently, no token mixing (that's 
 
 $$\text{FFN}_{\text{SwiGLU}}(x) = W_3\,[(W_1 x) \otimes \text{Swish}(W_2 x)]$$
 
+Notation (compare the dense FFN at the top of this note):
+- $W_1 \in \mathbb{R}^{d_{ff} \times d}$ — **value projection** ("what to say"): expands $x \in \mathbb{R}^d$ to $d_{ff}$ numbers, stays linear (no activation)
+- $W_2 \in \mathbb{R}^{d_{ff} \times d}$ — **gate projection** ("how open is each channel"): same shape as $W_1$, reads the *same* $x$, output squashed by Swish
+- $W_3 \in \mathbb{R}^{d \times d_{ff}}$ — down projection back to $d$ (plays the role dense $W_2$ played)
+- $\otimes$ — **element-wise (Hadamard) product**, *not* a tensor product: both inputs are vectors of length $d_{ff}$, multiplied entry-by-entry → hidden unit $i$ is $(W_1x)_i \cdot \text{Swish}((W_2x)_i)$, a product of two scalars
+- $\text{Swish}(z) = z \cdot \text{sigmoid}(z)$ — smooth ReLU-like curve (≈ identity for large $z$, ≈ 0 for very negative $z$), see [[Activation Function]]
+- Per-unit contrast — dense: $\sigma(\text{one dot product})$; SwiGLU: $(\text{dot product A}) \times \text{Swish}(\text{dot product B})$ — the *whether* (gate) and the *what* (value) get separate learned pattern-matchers
+- Three matrices instead of two → params $3\,d\,d_{ff}$; at $d_{ff} = \tfrac{8}{3}d$ this equals the dense 4× budget $8d^2$ (why LLaMA-7B's $d_{ff}=11008 \approx \tfrac{8}{3}\cdot 4096$)
+
 - Two input projections, one gates the other element-wise; full family and per-variant results in [[GLU Variants]] and [[Activation Function]]
 - **Results:** GEGLU/SwiGLU beat ReLU and GELU FFNs on T5 pre-training perplexity + GLUE/SuperGLUE at fixed params ([[GLU Variants Improve Transformer (2020)|Shazeer 2020]]); mechanism = smaller NTK condition number → faster optimization, ≈ no generalization-gap change ([[The Devil is in the Condition Numbers (2026)|Lyu 2026]])
 - **Costs:** 2× memory reads at inference; recoverable — masked single-matrix variant SwiMGLU matches SwiGLU accuracy at 47% less memory traffic, 34% faster ([[Masked Gated Linear Unit (2025)|Tajima 2025]]). Side effect: gating rotates features off the neuron basis → neuron-level interpretability (the key-value reading above) degrades ([[Sparsity Moves Computation (2026)|Smithline 2026]])
