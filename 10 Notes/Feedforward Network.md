@@ -51,7 +51,7 @@ Applied **position-wise** — each token independently, no token mixing (that's 
 - Reading: rows of $W_1$ = **keys** (pattern detectors on the input), columns of $W_2$ = **values** (output-vocabulary distributions); hidden unit = memory slot; output = key-weighted sum of values ([[Transformer Feed-Forward Layers Are Key-Value Memories (2021)|Geva 2021]])
 - **Results** (Geva 2021, GPT-style LMs): keys are human-interpretable; lower layers fire on shallow patterns (n-grams), upper layers on semantic ones; upper-layer values concentrate probability on the token *following* the pattern — FFN ≈ trained next-token lookup
 - **Relocatable, not removable:** replacing all FFNs with persistent key-value vectors attended to by self-attention **matches standard transformer** LM performance ([[Augmenting Self-attention with Persistent Memory (2019)|Sukhbaatar 2019]]); but cutting FFN capacity outright degrades pre-training loss, and **3-layer FFNs with fewer blocks beat 2-layer FFNs with more blocks** at matched budget ([[Attention Is Not All You Need - FFN importance (2025)|Gerber 2025]], small scale)
-- Division of labor: attention mixes information *across* tokens; FFN transforms/retrieves *per token* — knowledge-editing methods (ROME, MEMIT) exploit this by rewriting facts directly in FFN weights
+- Division of labor: attention mixes information *across* tokens; FFN transforms/retrieves *per token* — knowledge-editing methods ([[ROME]], [[MEMIT]]) exploit this by rewriting facts directly in FFN weights
 - **Conclusion:** the FFN is the transformer's parametric memory; its capacity must exist somewhere, but its per-layer placement and 2-layer shape are conventions, not optima
 
 ## Expansion ratio $d_{ff}/d$
