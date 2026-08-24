@@ -75,7 +75,7 @@ Notation (compare the dense FFN at the top of this note):
 - Three matrices instead of two → params $3\,d\,d_{ff}$; at $d_{ff} = \tfrac{8}{3}d$ this equals the dense 4× budget $8d^2$ (why LLaMA-7B's $d_{ff}=11008 \approx \tfrac{8}{3}\cdot 4096$)
 
 - Two input projections, one gates the other element-wise; full family and per-variant results in [[GLU Variants]] and [[Activation Function]]
-- **Results:** GEGLU/SwiGLU beat ReLU and GELU FFNs on T5 pre-training perplexity + GLUE/SuperGLUE at fixed params ([[GLU Variants Improve Transformer (2020)|Shazeer 2020]]); mechanism = smaller NTK condition number → faster optimization, ≈ no generalization-gap change ([[The Devil is in the Condition Numbers (2026)|Lyu 2026]])
+- **Results:** GEGLU/SwiGLU beat ReLU and GELU FFNs on T5 pre-training perplexity + GLUE/SuperGLUE at fixed params ([[GLU Variants Improve Transformer (2020)|Shazeer 2020]]); mechanism = smaller [[Neural Tangent Kernel|NTK]] condition number → faster optimization, ≈ no generalization-gap change ([[The Devil is in the Condition Numbers (2026)|Lyu 2026]])
 - **Costs:** 2× memory reads at inference; recoverable — masked single-matrix variant SwiMGLU matches SwiGLU accuracy at 47% less memory traffic, 34% faster ([[Masked Gated Linear Unit (2025)|Tajima 2025]]). Side effect: gating rotates features off the neuron basis → neuron-level interpretability (the key-value reading above) degrades ([[Sparsity Moves Computation (2026)|Smithline 2026]])
 - **Conclusion:** default in every current dense LLM; quality win is real, paid in inference bandwidth
 
