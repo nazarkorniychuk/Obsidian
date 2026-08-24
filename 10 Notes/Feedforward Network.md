@@ -25,15 +25,15 @@ Applied **position-wise** — each token independently, no token mixing (that's 
 
 ## ⚡ Adoption table
 
-| FFN design | Introduced by | Flagship adopters | Reason |
-| --- | --- | --- | --- |
-| Dense ReLU, 4× | Vaswani et al. 2017 | **original Transformer, T5** | baseline convention |
-| Dense GELU, 4× | — (BERT era) | **BERT, GPT-1/2/3, ViT** | smooth [[Activation Function]] wins at depth |
-| SwiGLU, ~8/3–3.5× | [[GLU Variants Improve Transformer (2020)\|Shazeer 2020]] | **PaLM, LLaMA 1–3, Mistral, Qwen** | perplexity win at fixed params; faster convergence ([[The Devil is in the Condition Numbers (2026)\|NTK]]) |
-| GEGLU, wide (8×) | [[GLU Variants Improve Transformer (2020)\|Shazeer 2020]] | **Gemma** | same gating family, GELU gate |
-| MoE (routed FFN) | Shazeer 2017; scaled by [[Switch Transformers (2021)\|Fedus 2021]] | **Switch, GLaM, Mixtral 8×7B, DeepSeek-V2/V3, Qwen-MoE** | parameters ↑ without FLOPs ↑; 7× pre-training speedup at equal compute |
-| Shared / single wide | [[One Wide Feedforward Is All You Need (2023)\|Pires 2023]] | research (MT) | per-layer FFNs are redundant; one wide shared FFN beats Transformer Big |
-| Masked GLU | [[Masked Gated Linear Unit (2025)\|Tajima 2025]] | research | SwiGLU quality at 47% less FFN memory traffic |
+| FFN design           | Introduced by                                                      | Flagship adopters                                        | Reason                                                                                                     |
+| -------------------- | ------------------------------------------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Dense ReLU, 4×       | [[Attention Is All You Need (2017)\|Vaswani 2017]]                 | **original Transformer, T5**                             | baseline convention (set without ablation)                                                                 |
+| Dense GELU, 4×       | GPT-1 2018; cemented by [[BERT (2019)\|Devlin 2019]]               | **BERT, GPT-1/2/3, ViT**                                 | smooth [[Activation Function]] wins at depth                                                               |
+| SwiGLU, ~8/3–3.5×    | [[GLU Variants Improve Transformer (2020)\|Shazeer 2020]]          | **PaLM, LLaMA 1–3, Mistral, Qwen**                       | perplexity win at fixed params; faster convergence ([[The Devil is in the Condition Numbers (2026)\|NTK]]) |
+| GEGLU, wide (8×)     | [[GLU Variants Improve Transformer (2020)\|Shazeer 2020]]          | **Gemma**                                                | same gating family, GELU gate                                                                              |
+| MoE (routed FFN)     | [[Outrageously Large Neural Networks (2017)\|Shazeer 2017]]; scaled by [[Switch Transformers (2021)\|Fedus 2021]] | **Switch, GLaM, Mixtral 8×7B, DeepSeek-V2/V3, Qwen-MoE** | parameters ↑ without FLOPs ↑; 7× pre-training speedup at equal compute                                     |
+| Shared / single wide | [[One Wide Feedforward Is All You Need (2023)\|Pires 2023]]        | research (MT)                                            | per-layer FFNs are redundant; one wide shared FFN beats Transformer Big                                    |
+| Masked GLU           | [[Masked Gated Linear Unit (2025)\|Tajima 2025]]                   | research                                                 | SwiGLU quality at 47% less FFN memory traffic                                                              |
 
 ## ⚡ Key numbers
 
@@ -107,6 +107,9 @@ graph LR
 
 ## Sources
 
+- [[Attention Is All You Need (2017)]] — the dense ReLU 4× convention
+- [[BERT (2019)]] — cemented dense GELU 4×
+- [[Outrageously Large Neural Networks (2017)]] — MoE origin: sparse gating, 137B params in 2017
 - [[Transformer Feed-Forward Layers Are Key-Value Memories (2021)]] — role/interpretability anchor; 2/3-of-params fact
 - [[Augmenting Self-attention with Persistent Memory (2019)]] — FFN relocatable into attention
 - [[Attention Is Not All You Need - FFN importance (2025)]] — FFN capacity load-bearing; 3-layer > 2-layer (small scale)
