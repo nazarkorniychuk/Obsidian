@@ -17,7 +17,9 @@ Notation:
 - $d_{ff}$ — the **FFN hidden (intermediate) dimension**: the width of the layer between $W_1$ and $W_2$ (e.g. 11008 in LLaMA-7B); shape is narrow → wide → narrow, so $W_1$ expands $d \to d_{ff}$ and $W_2$ projects back $d_{ff} \to d$
 - **Expansion ratio** = $d_{ff}/d$ — how much wider the hidden layer is than the residual stream
 
-Applied **position-wise** — each token independently, no token mixing (that's the [[Attention Mechanism]]'s job). Parameters: $2\,d\,d_{ff}$ dense, $3\,d\,d_{ff}$ gated ([[GLU Variants]]). At the standard 4× expansion this is **~2/3 of a transformer's non-embedding parameters** ([[Transformer Feed-Forward Layers Are Key-Value Memories (2021)|Geva 2021]]).
+Applied **position-wise** — each token independently, no token mixing (that's the [[Attention Mechanism]]'s job).
+
+**Parameter count** (any ratio — just the matrix sizes): dense = $W_1 + W_2 = 2\,d\,d_{ff}$; gated adds a third projection → $3\,d\,d_{ff}$ ([[GLU Variants]]). Plugging in the standard 4× ratio ($d_{ff}=4d$): FFN $= 8d^2$ vs attention's $4d^2$ (Q,K,V,O each $d^2$) → **FFN ≈ 2/3 of a block's weights** ([[Transformer Feed-Forward Layers Are Key-Value Memories (2021)|Geva 2021]]).
 
 ![[ffn-param-share.png]]
 
