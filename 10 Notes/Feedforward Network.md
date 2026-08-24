@@ -106,6 +106,13 @@ graph LR
 
 ---
 
+## Hardware — how FFNs are actually computed
+
+- **The FFN is the most hardware-friendly part of a transformer:** two (three, gated) large dense GEMMs — exactly what tensor cores are built for. In training and prefill, batches are large → high arithmetic intensity → compute-bound, near-peak utilization
+- **Decode flips it to bandwidth-bound:** batch ≈ 1 token means every weight is streamed from HBM for a single multiply — generation speed ≈ bytes ÷ bandwidth (see the gated-FFN Costs bullet). Consequences: **quantization targets FFN weights first** (they're the bulk of the bytes), and gating's extra input matrix is a real tax ([[Masked Gated Linear Unit (2025)|Tajima 2025]]'s single-matrix masking recovers 47% of the traffic)
+- **The [[Activation Function]] between the GEMMs is fused into the kernel epilogue** — effectively free on GPU (details in that note's hardware section)
+- **MoE changes the systems problem entirely** — expert parallelism, all-to-all communication, dropless block-sparse kernels, and the inference double penalty live in [[Mixture of Experts]] → Hardware & systems
+
 ## Related
 
 - Component of the [[Transformer]] block; contrast with [[Attention Mechanism]] — mixes within a token vs across tokens

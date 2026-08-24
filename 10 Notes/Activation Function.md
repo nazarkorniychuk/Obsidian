@@ -128,6 +128,13 @@ $$\text{SwiGLU}(x) = (W_1 x) \otimes \text{Swish}(W_2 x)$$
 
 ---
 
+## Hardware — how activations are actually computed
+
+- **On GPUs, activations are ~free:** element-wise ops are memory-bound, so frameworks **fuse them into the preceding matmul's epilogue** — the activation is applied while the data is still in registers, costing no extra memory pass. The choice of activation barely affects GPU throughput
+- **On ASICs/FPGAs/edge silicon, transcendentals are the enemy:** ReLU is a single comparator (essentially free); erf (GELU), exp (Swish/ELU/softmax), tanh cost real area and power. Every deployed smooth activation is an **approximation**: GELU via its tanh formula or piecewise fits; Swish via **h-swish** (piecewise-linear, MobileNetV3's mobile trick) or better circuits that beat h-swish on delay, area, *and* power ([[Hardware-Friendly Approximation for Swish Activation (2024)|Choi 2024]])
+- **Circuit reuse:** transformer accelerators need softmax (attention) anyway — GELU can be mapped onto the same softmax unit: no accuracy loss, −6.1% area, −11.9% power vs separate circuits ([[Reusing Softmax Hardware Unit for GELU (2024)|Peltekis 2024]])
+- **Conclusion:** the "compute cost" design tension (top of this note) is real only off-GPU — which is exactly why the edge/mobile column of the adoption table stays ReLU/h-swish while datacenter models use erf-based GELU freely
+
 ## Related
 
 - Source of non-linearity in every [[Neural Network]]
@@ -159,6 +166,8 @@ $$\text{SwiGLU}(x) = (W_1 x) \otimes \text{Swish}(W_2 x)$$
 - [[GLU Variants Improve Transformer (2020)]] — SwiGLU
 - [[The Devil is in the Condition Numbers (2026)]] — why GLU wins (NTK)
 - [[Activation Functions in Deep Learning - A Comprehensive Survey and Benchmark (2021)]] — the neutral referee
+- [[Hardware-Friendly Approximation for Swish Activation (2024)]] — hardware approximation beats h-swish
+- [[Reusing Softmax Hardware Unit for GELU (2024)]] — GELU on the softmax circuit
 
 ---
 Part of the [[Transformer]] cluster
