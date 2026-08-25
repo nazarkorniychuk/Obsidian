@@ -34,7 +34,8 @@ Notation:
 | Fine-grained + shared experts | [[DeepSeekMoE (2024)\|Dai 2024]] | **DeepSeek-V2/V3, Qwen-MoE, Ling** | expert specialization; LLaMA-2-7B quality at 40% compute |
 | + loss-free balancing | [[DeepSeek-V3 Technical Report (2024)\|DeepSeek-AI 2024]] | **DeepSeek-V3 (671B/37B)** | bias-adjustment replaces auxiliary losses; frontier at $5.6M train cost |
 | Dropless / block-sparse kernels | [[MegaBlocks (2022)\|Gale 2022]] | Databricks-lineage training stacks | no token dropping; +40% over prior MoE stacks |
-| Upcycling (dense → MoE init) | Komatsuzaki 2022 | Nemotron-family, many mid-scale MoEs | reuse sunk dense-training cost; beats continued dense training |
+| Upcycling (dense → MoE init) | [[Sparse Upcycling (2022)\|Komatsuzaki 2022]] | Nemotron-family, many mid-scale MoEs | copy dense FFN into every expert + fresh router; beats dense parent at ~50% extra compute |
+| Soft MoE (differentiable) | [[From Sparse to Soft Mixtures of Experts (2023)\|Puigcerver 2023]] | vision (ViT-scale) | no discrete routing at all — no balancing losses, no dead experts; blocked from causal LMs |
 
 ## ⚡ Scaling laws — the ratios and what happens when you move them
 
@@ -61,9 +62,25 @@ graph LR
     S --> y[output]
 ```
 
-- Router = one linear layer + softmax + top-$K$ truncation; trained end-to-end with the model. Non-differentiability of top-$K$ and **router collapse** (all tokens → one expert) are the classic failure modes
-- Fixes: noisy gating + auxiliary **load-balancing loss** ([[Outrageously Large Neural Networks (2017)|Shazeer 2017]]); top-1 suffices with selective precision ([[Switch Transformers (2021)|Fedus 2021]]); **auxiliary-loss-free balancing** via per-expert bias adjustment ([[DeepSeek-V3 Technical Report (2024)|DeepSeek-AI 2024]]) — removes the gradient interference of balancing losses
-- **Deflationary result:** in small transformers, frozen *random* routing ≈ learned routing — much of the benefit is architectural sparsity itself, not learned specialization; MoE also shifts computation into attention ([[Sparsity Moves Computation (2026)|Smithline 2026]], toy scale). Counterpoint at LLM scale: fine-grained experts do specialize measurably ([[DeepSeekMoE (2024)|Dai 2024]] ablations)
+- Router = one linear layer + softmax + top-$K$ truncation; trained end-to-end with the model
+
+## Training & load balancing — the non-differentiability problem
+
+**The core difficulty:** top-$K$ selection is a **discrete, non-differentiable** operation. Gradients flow through the gate *values* $g_i(x)$ of the experts that were selected — but there is **no gradient signal through the selection itself**: an unselected expert receives zero gradient, so nothing ever tells the router "expert 7 *would have been* better." Training relies on the selected experts' gates being differentiable and on exploration; the un-taken paths are invisible.
+
+**The failure mode this causes — router collapse (rich-get-richer):** early in training, whichever experts happen to receive tokens improve; improved experts get higher router scores; higher scores → more tokens → more improvement. The loop concentrates all traffic on a few experts while the rest never train (dead experts) — the mixture degenerates toward a single dense model, wasting the parameter budget. Imbalance also has a *systems* cost: overloaded experts stall the batch or drop tokens (capacity factor, see Hardware below).
+
+**The solutions, in historical order:**
+
+1. **Noisy top-k gating + auxiliary load-balancing loss** ([[Outrageously Large Neural Networks (2017)|Shazeer 2017]]): add noise to router scores (forced exploration — occasionally a "wrong" expert gets tokens and a chance to improve), plus an **auxiliary loss** ≈ $N \sum_i f_i P_i$ where $f_i$ = fraction of tokens routed to expert $i$ and $P_i$ = router probability mass on $i$. This product is minimized by uniform load, and — crucially — it is **differentiable** (through $P_i$), giving the router the balancing gradient the task loss can't provide
+2. **Simplification + stability** ([[Switch Transformers (2021)|Fedus 2021]]): top-1 routing with a single simplified balancing loss; router kept in **fp32** (selective precision) because routing softmax is numerically fragile in bf16
+3. **Auxiliary-loss-free balancing** ([[DeepSeek-V3 Technical Report (2024)|DeepSeek-AI 2024]]): the balancing loss has a cost — its gradient *interferes* with the language-modeling gradient (the model is partly optimizing "spread tokens evenly" instead of "predict tokens"). DeepSeek-V3 removes it: a **per-expert bias** is added to routing scores for *selection only* (not for the gate weights, so no gradient path) and adjusted online — bias up if an expert is underloaded, down if overloaded. Balancing becomes a control loop outside the loss; V3 trained 14.8T tokens with no loss spikes
+4. **Fully differentiable routing — dissolve the problem** ([[From Sparse to Soft Mixtures of Experts (2023)|Puigcerver 2023]]): **Soft MoE** replaces discrete assignment entirely — each expert processes learned *weighted mixtures of all tokens* (fixed slots), so ordinary backprop covers everything: no balancing losses, no dead experts, no token dropping. Beats dense ViTs and sparse MoEs in vision (128 experts, >40× ViT-Huge params at +2% inference time); doesn't transfer to causal LMs (mixing tokens breaks autoregressive masking), which is why LLMs still route discretely
+
+**Does learned routing actually learn anything?** Evidence in both directions:
+- **For:** theory proves the router can learn cluster-center features that divide a provably-hard problem into per-cluster sub-problems single experts can solve — data cluster structure + expert non-linearity are the pivotal ingredients, and this is *why the mixture doesn't collapse* when properly balanced ([[Towards Understanding the Mixture-of-Experts Layer (2022)|Chen 2022]]); fine-grained experts specialize measurably at scale ([[DeepSeekMoE (2024)|Dai 2024]] ablations)
+- **Against:** in small transformers, frozen *random* routing ≈ learned routing — much of the benefit is architectural sparsity itself ([[Sparsity Moves Computation (2026)|Smithline 2026]], toy scale)
+- **Observed in trained LLMs:** routers systematically prefer experts with **larger output norms**; expert diversity increases with depth (last layer an outlier) ([[A Closer Look into Mixture-of-Experts in LLMs (2024)|Lo 2024]]) — real routers are partly magnitude-driven, not purely semantic
 
 ## Results — the headline numbers
 
@@ -111,6 +128,10 @@ graph LR
 - [[Mixtral of Experts (2024)]] — open-weights coarse MoE
 - [[DeepSeek-V2 (2024)]] — 236B/21B; MLA companion
 - [[DeepSeek-V3 Technical Report (2024)]] — 671B/37B; loss-free balancing
+- [[From Sparse to Soft Mixtures of Experts (2023)]] — fully differentiable routing (vision)
+- [[Sparse Upcycling (2022)]] — dense checkpoint → MoE init
+- [[Towards Understanding the Mixture-of-Experts Layer (2022)]] — why routing works / doesn't collapse (theory)
+- [[A Closer Look into Mixture-of-Experts in LLMs (2024)]] — observed router behavior (output norms, depth diversity)
 - [[MegaBlocks (2022)]] — dropless block-sparse kernels
 - [[The qs Inequality (2026)]] — inference double penalty
 - [[Sparsity Moves Computation (2026)]] — random ≈ learned routing (toy scale)
