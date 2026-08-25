@@ -9,19 +9,31 @@
   "colorGroups": [
     {
       "query": "path:\"20 Maps\" OR file:\"Home\"",
-      "color": { "a": 1, "rgb": 15532288 }
+      "color": {
+        "a": 1,
+        "rgb": 15532288
+      }
     },
     {
       "query": "path:\"30 Sources\"",
-      "color": { "a": 1, "rgb": 9868950 }
+      "color": {
+        "a": 1,
+        "rgb": 9868950
+      }
     },
     {
       "query": "path:\"00 Inbox\"",
-      "color": { "a": 1, "rgb": 1814394 }
+      "color": {
+        "a": 1,
+        "rgb": 1814394
+      }
     },
     {
       "query": "path:\"10 Notes\"",
-      "color": { "a": 1, "rgb": 2783446 }
+      "color": {
+        "a": 1,
+        "rgb": 2783446
+      }
     }
   ],
   "collapse-display": false,
@@ -34,5 +46,6 @@
   "repelStrength": 12,
   "linkStrength": 0.9,
   "linkDistance": 200,
-  "scale": 0.35
+  "scale": 0.7562082943738775,
+  "close": false
 }

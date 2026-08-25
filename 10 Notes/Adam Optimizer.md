@@ -34,7 +34,7 @@ $\eta$ is never constant:
 ## Costs & systems reality
 
 - **State: 2 extra fp32 tensors per parameter** ($m, v$) → with fp32 master weights, optimizer state ≈ **12 bytes/param vs 2 for bf16 weights** — the dominant training-memory item, motivating ZeRO-style sharding across GPUs and 8-bit optimizer states
-- Frontier alternatives (flagged, not yet sourced in this vault): **Muon** and second-order-lite methods (Shampoo/SOAP) report 1.3–2× pre-training speedups over AdamW at small-to-mid scale, with μP-style spectral scaling rules extending to them — the first serious challenge to Adam's decade of dominance
+- Frontier alternatives: **[[Optimizers|Muon]]** (orthogonalized momentum — ~2× compute efficiency vs AdamW at compute-optimal scale, [[Muon is Scalable for LLM Training (2025)|Liu 2025]], with scale-dependent caveats per [[Fantastic Pretraining Optimizers II - Hyperball (2026)|Wen 2026]]) and second-order-lite methods (Shampoo/SOAP) — the first serious challenge to Adam's decade of dominance; full family map in [[Optimizers]]
 
 ## Related
 

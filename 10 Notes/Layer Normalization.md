@@ -8,7 +8,7 @@ aliases: [LayerNorm, LN, RMSNorm]
 
 # Layer Normalization
 
-Per-token activation normalization — the [[Transformer]]'s training stabilizer, whose *placement* turned out to matter more than its formula.
+Per-token activation normalization — the [[Transformer]]'s training stabilizer, whose *placement* turned out to matter more than its formula. (Family overview — BatchNorm, GroupNorm, RMSNorm origins, exact placement equations: [[Normalization]].)
 
 $$\text{LN}(x) = \gamma \odot \frac{x - \mu(x)}{\sigma(x)} + \beta \qquad\qquad \text{RMSNorm}(x) = \gamma \odot \frac{x}{\sqrt{\tfrac{1}{d}\sum_i x_i^2}}$$
 
