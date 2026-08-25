@@ -22,7 +22,9 @@ $|W_E| = V \cdot d$:
 | LLaMA-2-7B | 32,000 × 4096 | 131M | ≈1.9% |
 | Gemma-7B | 256,000 × 3072 | 786M | ≈9% |
 
-**The regime split:** in small models embeddings dominate → weight tying ([[Using the Output Embedding to Improve Language Models (2016)|Press & Wolf 2016]]) halves that cost *and* improves perplexity. In large models they're a rounding error → untying's flexibility wins ([[Rethinking Embedding Coupling (2020)|Chung 2020]]): shrink the input embedding, spend the savings on layers — dramatically better downstream at equal parameters, especially multilingual. Rule: **tie small, untie large** (GPT-2 tied; LLaMA-family untied).
+**Weight tying** = use **one shared $V \times d$ matrix** for both token↔vector maps: the input [[Embedding]] $W_E$ (job: *represent* a token) and the output [[Unembedding]] $W_U$ (job: *score* the hidden state against each token, $\text{logit}_i = W_U[i]\cdot h$). Setting $W_U = W_E$ — literally the same tensor, gradients from both roles accumulating into it — deletes an entire $V \times d$ matrix, and is coherent because both matrices encode "one vector per token" with similar-word structure ([[Using the Output Embedding to Improve Language Models (2016)|Press & Wolf 2016]]).
+
+**The regime split:** in small models embeddings dominate (GPT-2: 31%) → tying reclaims that budget *and* improves perplexity (each token's single vector trains on both its input and target occurrences — a data-efficiency bonus). In large models embeddings are a rounding error (~2%) → savings are irrelevant and **untying's specialization wins** ([[Rethinking Embedding Coupling (2020)|Chung 2020]]): the two jobs diverge — under tying, output gradients dominate and the shared matrix becomes an output vector doing double duty; decoupling, shrinking the input embedding, and spending the savings on layers is dramatically better downstream at equal parameters, especially multilingual. Rule: **tie small, untie large** (GPT-2 tied; LLaMA-family untied; Gemma ties despite its size because its 256k vocab puts embeddings back in the "dominant" regime).
 
 ## What the vectors become
 
