@@ -1,22 +1,38 @@
 {
-  "collapse-filter": true,
+  "collapse-filter": false,
   "search": "",
   "showTags": false,
   "showAttachments": false,
   "hideUnresolved": false,
   "showOrphans": true,
-  "collapse-color-groups": true,
-  "colorGroups": [],
-  "collapse-display": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "path:\"20 Maps\" OR file:\"Home\"",
+      "color": { "a": 1, "rgb": 15532288 }
+    },
+    {
+      "query": "path:\"30 Sources\"",
+      "color": { "a": 1, "rgb": 9868950 }
+    },
+    {
+      "query": "path:\"00 Inbox\"",
+      "color": { "a": 1, "rgb": 1814394 }
+    },
+    {
+      "query": "path:\"10 Notes\"",
+      "color": { "a": 1, "rgb": 2783446 }
+    }
+  ],
+  "collapse-display": false,
   "showArrow": false,
-  "textFadeMultiplier": 0,
-  "nodeSizeMultiplier": 1,
-  "lineSizeMultiplier": 1,
-  "collapse-forces": true,
-  "centerStrength": 0.518713248970312,
-  "repelStrength": 10,
-  "linkStrength": 1,
-  "linkDistance": 250,
-  "scale": 1.8762811954225895,
-  "close": true
+  "textFadeMultiplier": -0.4,
+  "nodeSizeMultiplier": 1.3,
+  "lineSizeMultiplier": 0.7,
+  "collapse-forces": false,
+  "centerStrength": 0.45,
+  "repelStrength": 12,
+  "linkStrength": 0.9,
+  "linkDistance": 200,
+  "scale": 0.35
 }
