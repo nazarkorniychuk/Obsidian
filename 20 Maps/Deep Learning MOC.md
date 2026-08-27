@@ -27,7 +27,7 @@ created: 2026-08-25
 - [[Positional Encoding]] — sinusoidal → relative → RoPE → ALiBi → NoPE
 - [[Attention Mechanism]] — the parent note for everything attention
 - [[Feedforward Network]] — the parameter store; key-value memory view
-- [[Layer Normalization]] · [[Residual Connection]] — the glue (pre/post-LN, rank collapse)
+- [[Normalization]] · [[Residual Connection]] — the glue (pre/post-LN, rank collapse)
 
 ## 👁 Attention family
 

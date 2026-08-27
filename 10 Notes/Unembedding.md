@@ -34,7 +34,7 @@ Per decoded token the head is one $d \times V$ GEMM + softmax — at $V \approx 
 
 - Mirror of [[Embedding]]; often weight-tied in small models, untied in large
 - Applied mid-network = the logit lens; foundation for [[Transformer Feed-Forward Layers Are Key-Value Memories (2021)|FFN value reading]]
-- Softmax numerics shared with [[Layer Normalization]]-adjacent stability tricks (z-loss, capping)
+- Softmax numerics shared with [[Normalization]]-adjacent stability tricks (z-loss, capping)
 
 ## Sources
 

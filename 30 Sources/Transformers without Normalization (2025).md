@@ -30,4 +30,4 @@ Challenges the "normalization is indispensable" doctrine: what LN contributes at
 
 ## Concepts extracted
 
-- [[Layer Normalization]] — the do-we-even-need-it result
+- [[Normalization]] — the do-we-even-need-it result

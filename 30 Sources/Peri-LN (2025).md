@@ -35,4 +35,4 @@ The current answer to the placement dilemma: pre-LN is stable but lets stream va
 
 ## Concepts extracted
 
-- [[Normalization]], [[Layer Normalization]] — the placement frontier
+- [[Normalization]], [[Normalization]] — the placement frontier

@@ -44,7 +44,7 @@ The lineage logic: SGD treats all parameters identically → AdaGrad/RMSProp/Ada
 
 - Base algorithm: [[Gradient Descent]]; incumbent deep-dive: [[Adam Optimizer]]
 - Conditioning lens for "why optimizer X wins": [[Neural Tangent Kernel]]
-- Interacts with [[Weight Initialization]] (μP), [[Normalization]] (landscape smoothing), [[Layer Normalization]] (warmup)
+- Interacts with [[Weight Initialization]] (μP) and [[Normalization]] (landscape smoothing; warmup's pre/post-norm origin)
 
 ## Sources
 

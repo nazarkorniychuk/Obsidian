@@ -22,7 +22,7 @@ For a dense layer $z_k = \sigma(W_k z_{k-1})$: $\delta_{k-1} = W_k^\top(\delta_k
 
 ## The four practical consequences
 
-1. **Vanishing/exploding gradients:** $\delta$ traverses a *product* of layer Jacobians; if their singular values sit below/above 1, the signal shrinks/blows up geometrically with depth. The entire modern stack is engineered against this — non-saturating [[Activation Function]]s (derivative ≈ 1), [[Residual Connection]]s (an additive identity term in the gradient, no product along the skip path), [[Layer Normalization]] (re-scaling between products), variance-preserving [[Weight Initialization]] (Jacobian singular values ≈ 1 at start)
+1. **Vanishing/exploding gradients:** $\delta$ traverses a *product* of layer Jacobians; if their singular values sit below/above 1, the signal shrinks/blows up geometrically with depth. The entire modern stack is engineered against this — non-saturating [[Activation Function]]s (derivative ≈ 1), [[Residual Connection]]s (an additive identity term in the gradient, no product along the skip path), [[Normalization]] (re-scaling between products), variance-preserving [[Weight Initialization]] (Jacobian singular values ≈ 1 at start)
 2. **Activation memory & recomputation:** storing activations dominates training memory at long sequence lengths → **gradient checkpointing**: store a subset, recompute the rest during the backward pass — trading FLOPs for memory. [[Flash Attention]]'s backward pass is exactly this trade, done per-block in SRAM
 3. **Differentiability as a design constraint:** every component must pass gradients — the reason discrete choices are hard to train (the [[Mixture of Experts]] top-k non-differentiability problem and its whole balancing lineage exist because of this), and why ReLU's kink is fine (a.e. differentiable) but hard step functions are not
 4. **What gets learned:** hidden units acquire task-relevant internal representations not present in input or output — the original paper's headline, and the property that separates deep learning from the perceptron era ([[Learning Representations by Back-propagating Errors (1986)]])
@@ -34,7 +34,7 @@ The math (reverse-mode AD) predates the fame: Linnainmaa 1970, Werbos 1974 for n
 ## Related
 
 - Supplies gradients to [[Gradient Descent]] / [[Adam Optimizer]]
-- Its failure modes shaped [[Activation Function]], [[Residual Connection]], [[Layer Normalization]], [[Weight Initialization]]
+- Its failure modes shaped [[Activation Function]], [[Residual Connection]], [[Normalization]], [[Weight Initialization]]
 - Cost structure drives [[Flash Attention]]-style recomputation and training-memory engineering
 - Linearized view of its dynamics = [[Neural Tangent Kernel]]
 

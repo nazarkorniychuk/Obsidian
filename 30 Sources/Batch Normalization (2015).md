@@ -27,7 +27,7 @@ Normalize each feature **across the mini-batch** (per-channel mean/variance over
 ## The two corrections history added
 
 1. **The mechanism was wrong:** distributional stability has little to do with it — BN works by making the **optimization landscape significantly smoother** (more predictive, stabler gradients → bigger steps) ([[How Does Batch Normalization Help Optimization (2018)|Santurkar 2018]])
-2. **The batch dependence is a liability:** statistics degrade at small batches (GroupNorm exists for this), train/test behavior differs (running statistics), and coupling examples in a batch is unusable for autoregressive decoding — why **transformers use [[Layer Normalization]]-family (per-token) normalization instead**
+2. **The batch dependence is a liability:** statistics degrade at small batches (GroupNorm exists for this), train/test behavior differs (running statistics), and coupling examples in a batch is unusable for autoregressive decoding — why **transformers use [[Normalization]]-family (per-token) normalization instead**
 
 ## Concepts extracted
 

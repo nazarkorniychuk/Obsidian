@@ -36,7 +36,7 @@ MLP/feedforward (this note) → CNNs (weight sharing over space; enabled by [[De
 
 ## Related
 
-- Components: [[Activation Function]], [[Weight Initialization]], [[Residual Connection]], [[Layer Normalization]]
+- Components: [[Activation Function]], [[Weight Initialization]], [[Residual Connection]], [[Normalization]]
 - Training: [[Backpropagation]], [[Gradient Descent]], [[Adam Optimizer]]; theory: [[Neural Tangent Kernel]]
 - The dominant instance: [[Transformer]]
 

@@ -32,4 +32,4 @@ Set the conventions this vault's [[Feedforward Network]] note is about: $\text{F
 
 ## Concepts extracted
 
-- [[Transformer]], [[Attention Mechanism]], [[Multi-Head Attention]], [[Feedforward Network]], [[Positional Encoding]], [[Layer Normalization]], [[Residual Connection]]
+- [[Transformer]], [[Attention Mechanism]], [[Multi-Head Attention]], [[Feedforward Network]], [[Positional Encoding]], [[Normalization]], [[Residual Connection]]

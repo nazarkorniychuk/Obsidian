@@ -34,4 +34,4 @@ Pre-LN became the LLM default (GPT-2 onward, LLaMA-family with RMSNorm). Known c
 
 ## Concepts extracted
 
-- [[Layer Normalization]] — the placement question
+- [[Normalization]] — the placement question

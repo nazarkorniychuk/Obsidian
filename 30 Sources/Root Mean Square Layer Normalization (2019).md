@@ -35,4 +35,4 @@ No mean, no bias $\beta$ — one reduction instead of two, retaining re-scaling 
 
 ## Concepts extracted
 
-- [[Normalization]] — the LLM-standard variant; placement details in [[Layer Normalization]]
+- [[Normalization]] — the LLM-standard variant; placement details in [[Normalization]]

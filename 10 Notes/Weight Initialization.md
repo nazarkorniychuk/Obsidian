@@ -39,7 +39,7 @@ In standard parameterization, optimal hyperparameters **drift as width grows** â
 ## Related
 
 - Enables [[Gradient Descent]]/[[Adam Optimizer]]; stabilizes [[Backpropagation]]
-- Interlocks with [[Activation Function]] (He's factor 2 is ReLU's), [[Residual Connection]] + [[Layer Normalization]] (depth scaling), [[Neural Tangent Kernel]] (regime)
+- Interlocks with [[Activation Function]] (He's factor 2 is ReLU's), [[Residual Connection]] + [[Normalization]] (depth scaling), [[Neural Tangent Kernel]] (regime)
 
 ## Sources
 

@@ -39,7 +39,7 @@ $\eta$ is never constant:
 ## Related
 
 - Adaptive extension of [[Gradient Descent]] (momentum = $\beta_1$ half)
-- Warmup connects to [[Layer Normalization]] placement; hyperparameter transfer to [[Weight Initialization]]/μP
+- Warmup connects to [[Normalization]] placement; hyperparameter transfer to [[Weight Initialization]]/μP
 - The z-loss family ([[ST-MoE (2022)]], [[Unembedding]]) exists because Adam-trained bf16 logits misbehave
 
 ## Sources

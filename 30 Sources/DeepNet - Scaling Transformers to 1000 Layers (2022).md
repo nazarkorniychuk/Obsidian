@@ -27,4 +27,4 @@ Instead of switching to pre-LN, **fix post-LN**: **DeepNorm** modifies the resid
 
 ## Concepts extracted
 
-- [[Layer Normalization]], [[Residual Connection]] — the post-LN rescue; depth-vs-width evidence
+- [[Normalization]], [[Residual Connection]] — the post-LN rescue; depth-vs-width evidence

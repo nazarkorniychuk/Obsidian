@@ -31,4 +31,4 @@ The other shoe of the pre-LN story: [[On Layer Normalization in the Transformer 
 
 ## Concepts extracted
 
-- [[Layer Normalization]], [[Residual Connection]] — depth pathology
+- [[Normalization]], [[Residual Connection]] — depth pathology

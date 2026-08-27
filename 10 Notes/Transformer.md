@@ -8,7 +8,7 @@ aliases: [transformer architecture]
 
 # Transformer
 
-The dominant neural sequence architecture ([[Attention Is All You Need (2017)|Vaswani 2017]]): stacked blocks of [[Attention Mechanism|attention]] (mix information *across* positions) and [[Feedforward Network|FFN]] (transform *within* each position), glued by [[Residual Connection|residuals]] and [[Layer Normalization|normalization]]. Its winning property in 2017 wasn't accuracy per se but **parallelism**: no recurrence → the whole sequence trains at once (28.4 BLEU En-De in 3.5 days on 8 GPUs — a fraction of prior SOTA compute).
+The dominant neural sequence architecture ([[Attention Is All You Need (2017)|Vaswani 2017]]): stacked blocks of [[Attention Mechanism|attention]] (mix information *across* positions) and [[Feedforward Network|FFN]] (transform *within* each position), glued by [[Residual Connection|residuals]] and [[Normalization|normalization]]. Its winning property in 2017 wasn't accuracy per se but **parallelism**: no recurrence → the whole sequence trains at once (28.4 BLEU En-De in 3.5 days on 8 GPUs — a fraction of prior SOTA compute).
 
 ## The forward pass — every step now has its own note
 
@@ -19,7 +19,7 @@ The dominant neural sequence architecture ([[Attention Is All You Need (2017)|Va
 $$h' = h + \text{Attn}(\text{LN}(h)) \qquad h'' = h' + \text{FFN}(\text{LN}(h'))$$
    - [[Attention Mechanism]] — with variants [[Grouped-Query Attention]], [[Multi-Head Latent Attention]], [[Sliding Window Attention]], [[Linear Attention]]; computed via [[Flash Attention]]; decode state = [[KV Cache]]
    - [[Feedforward Network]] — usually [[GLU Variants|SwiGLU]] with an [[Activation Function]]; routed at scale = [[Mixture of Experts]]
-   - [[Layer Normalization]] (RMSNorm, pre-LN) and [[Residual Connection]]
+   - [[Normalization]] (RMSNorm, pre-LN) and [[Residual Connection]]
 5. [[Unembedding]] — final state → logits → softmax → sampling
 
 ```mermaid

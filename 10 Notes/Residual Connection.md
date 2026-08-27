@@ -27,12 +27,12 @@ Because blocks *add into* a shared stream, the transformer is best read as a **c
 ## What residuals provably prevent — and cost
 
 - **Rank collapse:** pure attention stacks converge to rank-1 (all tokens identical) **doubly exponentially with depth**; skip connections (with the FFN) provably stop the collapse ([[Attention is Not All You Need - Rank Collapse (2021)|Dong 2021]]) — the residual is a *diversity preserver*, not just a gradient highway
-- **Interaction with normalization:** where [[Layer Normalization]] sits relative to the skip is the whole pre/post-LN story; pre-LN keeps the skip pure (stable) but lets stream variance grow with depth until deep blocks approach identity — the curse of depth ([[The Curse of Depth in LLMs (2025)|Sun 2025]]); DeepNorm re-weights the skip ($\alpha x + F$) to train 1,000 layers ([[DeepNet - Scaling Transformers to 1000 Layers (2022)|Wang 2022]])
+- **Interaction with normalization:** where [[Normalization]] sits relative to the skip is the whole pre/post-LN story; pre-LN keeps the skip pure (stable) but lets stream variance grow with depth until deep blocks approach identity — the curse of depth ([[The Curse of Depth in LLMs (2025)|Sun 2025]]); DeepNorm re-weights the skip ($\alpha x + F$) to train 1,000 layers ([[DeepNet - Scaling Transformers to 1000 Layers (2022)|Wang 2022]])
 - **Theory bonus:** spline analysis of regularized training independently justifies skip connections as natural components ([[The Role of Neural Network Activation Functions (2019)|Parhi & Nowak 2019]])
 
 ## Related
 
-- Glue of the [[Transformer]] block, jointly with [[Layer Normalization]]
+- Glue of the [[Transformer]] block, jointly with [[Normalization]]
 - Enables the interpretability stack: [[Transformer Feed-Forward Layers Are Key-Value Memories (2021)]], [[Unembedding|logit lens]], [[ROME]]
 - Prevents the collapse identified in [[Attention is Not All You Need - Rank Collapse (2021)]]
 
