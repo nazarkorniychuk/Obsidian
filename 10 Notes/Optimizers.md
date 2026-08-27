@@ -33,11 +33,19 @@ The lineage logic: SGD treats all parameters identically → AdaGrad/RMSProp/Ada
 
 **The honest caveat:** under fair benchmarking, Muon-class gains **shrink as model and data scale grow** with standard constant weight decay — the weight-decay equilibrium controls the angular learning rate, and fixing update/weight norms directly (Hyperball) restores 20–30% token-equivalent speedups at 1.2B ([[Fantastic Pretraining Optimizers II - Hyperball (2026)|Wen 2026]]). Current picture: real but scale-dependent speedup; spectral/orthogonal update geometry is where optimizer research now lives (Dion, GLA-style sharded variants, μP spectral-condition extensions).
 
+## Schedules — optimizer-agnostic machinery
+
+Whatever the update rule, the learning rate $\eta$ is never constant:
+
+1. **Warmup** (linear ramp, ~0.1–2k steps): partly architectural — post-norm transformers *need* it to survive large output-layer gradients at init, pre-norm mostly removes the need ([[On Layer Normalization in the Transformer Architecture (2020)|Xiong 2020]]); partly optimizer-specific (Adam's noisy early second-moment estimates — see [[Adam Optimizer]])
+2. **Decay:** cosine annealing to ~10% of peak (SGDR lineage, [[Decoupled Weight Decay Regularization - AdamW (2017)|same authors as AdamW]]) is the LLM standard; **WSD** (warmup–stable–decay: long constant plateau, short sharp decay) is the rising alternative — mid-plateau checkpoints stay usable for continued training
+3. **Peak $\eta$ scales down with model size** in standard parameterization (≈3e-4 at 100M → ≈1e-4 at 70B) — or is made width-stable by [[Tensor Programs V - muTransfer (2022)|μP]], letting small-model sweeps transfer ([[Weight Initialization]])
+
 ## Cross-cutting facts
 
 - **Memory is a first-class constraint:** AdamW's $m, v$ + fp32 master weights ≈ 12–16 bytes/param vs 2 for bf16 weights — why ZeRO sharding, 8-bit optimizer states, and Adafactor exist; Muon's single state is part of its pitch
 - **Weight decay ≠ regularization only:** it sets the equilibrium weight norm and thereby the angular learning rate ([[Fantastic Pretraining Optimizers II - Hyperball (2026)]]); its decoupling from adaptivity is the entire AdamW story ([[Decoupled Weight Decay Regularization - AdamW (2017)|Loshchilov & Hutter 2017]])
-- **Schedules and warmup** (cosine, WSD, warmup's architectural origin) live in [[Adam Optimizer]]; **hyperparameter transfer across scale** ([[Tensor Programs V - muTransfer (2022)|μP]], now extended to Muon/Shampoo via spectral conditions) in [[Weight Initialization]]
+- **Hyperparameter transfer across scale** ([[Tensor Programs V - muTransfer (2022)|μP]], now extended to Muon/Shampoo via spectral conditions) lives in [[Weight Initialization]]
 - **Fair comparison is hard:** optimizer papers systematically flatter themselves via tuning asymmetries; the benchmark literature's rule — compare at *matched tuning budget and scale* — is why this note quotes ~2× and 20–30% with their scales attached
 
 ## Related

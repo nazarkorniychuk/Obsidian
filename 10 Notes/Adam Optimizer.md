@@ -24,12 +24,9 @@ $$\hat m_t = \frac{m_t}{1-\beta_1^t}, \quad \hat v_t = \frac{v_t}{1-\beta_2^t} \
 
 For SGD, $L_2$ penalty ≡ weight decay. **Under Adam they differ**: the $L_2$ gradient $\lambda\theta$ passes through the $\sqrt{\hat v}$ normalizer, so heavily-updated parameters get *less* regularization — backwards. **AdamW decouples**: $\theta_{t+1} = \theta_t - \eta(\hat m_t/(\sqrt{\hat v_t}+\epsilon) + \lambda\theta_t)$ — decay applied outside the adaptive machinery ([[Decoupled Weight Decay Regularization - AdamW (2017)|Loshchilov & Hutter 2017]]). Results: $\lambda$ and $\eta$ become independently tunable; generalization gap to momentum-SGD closes. Later theory: AdamW ≈ $\ell_\infty$-constrained optimization ($\|\theta\|_\infty \lesssim 1/\lambda$). **Every modern LLM config reads "AdamW".**
 
-## The schedule — the other half of the recipe
+## The Adam-specific warmup reason
 
-$\eta$ is never constant:
-1. **Warmup** (linear ramp over ~0.1–2k steps): both a shield against Adam's noisy early $v$ estimates and — for post-LN transformers — a necessity created by large output-layer gradients at init; pre-LN provably reduces the need ([[On Layer Normalization in the Transformer Architecture (2020)|Xiong 2020]])
-2. **Decay**: cosine annealing to ~10% of peak (the SGDR lineage — same authors as AdamW) is the LLM standard; **WSD** (warmup-stable-decay: long constant plateau, short sharp decay) is the rising alternative because checkpoints mid-plateau remain usable for continued training
-3. Peak $\eta$ scales *down* with model size in standard parameterization (≈3e-4 at 100M → ≈1e-4 at 70B) — or is made width-stable by [[Tensor Programs V - muTransfer (2022)|μP]], letting small-model sweeps transfer
+Schedules (warmup shapes, cosine vs WSD, peak-$\eta$ scaling) are optimizer-agnostic and live in [[Optimizers]] → Schedules. Adam adds one *specific* reason warmup helps: the second-moment EMA $v$ is **noisy and biased small in the first steps** (few samples), so early adaptive steps $\hat m/\sqrt{\hat v}$ can be violently large in low-$v$ coordinates — ramping $\eta$ shields against exactly this, complementing the architectural (post-norm) warmup story.
 
 ## Costs & systems reality
 
