@@ -3,10 +3,10 @@ type: concept
 topics: [deep-learning, optimization]
 status: evergreen
 created: 2026-08-25
-aliases: [Adam, AdamW, adaptive optimizers]
+aliases: [Adam, Adam Optimizer, adaptive optimizers]
 ---
 
-# Adam Optimizer
+# AdamW
 
 The de-facto optimizer of the transformer era ([[Adam - A Method for Stochastic Optimization (2014)|Kingma & Ba 2014]]): [[Gradient Descent]] with per-parameter adaptive step sizes from running moment estimates.
 
@@ -26,12 +26,12 @@ For SGD, $L_2$ penalty ≡ weight decay. **Under Adam they differ**: the $L_2$ g
 
 ## The Adam-specific warmup reason
 
-Schedules (warmup shapes, cosine vs WSD, peak-$\eta$ scaling) are optimizer-agnostic and live in [[Optimizers]] → Schedules. Adam adds one *specific* reason warmup helps: the second-moment EMA $v$ is **noisy and biased small in the first steps** (few samples), so early adaptive steps $\hat m/\sqrt{\hat v}$ can be violently large in low-$v$ coordinates — ramping $\eta$ shields against exactly this, complementing the architectural (post-norm) warmup story.
+Schedules (warmup shapes, cosine vs WSD, peak-$\eta$ scaling) are optimizer-agnostic and live in [[Optimizer]] → Schedules. Adam adds one *specific* reason warmup helps: the second-moment EMA $v$ is **noisy and biased small in the first steps** (few samples), so early adaptive steps $\hat m/\sqrt{\hat v}$ can be violently large in low-$v$ coordinates — ramping $\eta$ shields against exactly this, complementing the architectural (post-norm) warmup story.
 
 ## Costs & systems reality
 
 - **State: 2 extra fp32 tensors per parameter** ($m, v$) → with fp32 master weights, optimizer state ≈ **12 bytes/param vs 2 for bf16 weights** — the dominant training-memory item, motivating ZeRO-style sharding across GPUs and 8-bit optimizer states
-- Frontier alternatives: **[[Optimizers|Muon]]** (orthogonalized momentum — ~2× compute efficiency vs AdamW at compute-optimal scale, [[Muon is Scalable for LLM Training (2025)|Liu 2025]], with scale-dependent caveats per [[Fantastic Pretraining Optimizers II - Hyperball (2026)|Wen 2026]]) and second-order-lite methods (Shampoo/SOAP) — the first serious challenge to Adam's decade of dominance; full family map in [[Optimizers]]
+- Frontier alternatives: **[[Optimizer|Muon]]** (orthogonalized momentum — ~2× compute efficiency vs AdamW at compute-optimal scale, [[Muon is Scalable for LLM Training (2025)|Liu 2025]], with scale-dependent caveats per [[Fantastic Pretraining Optimizers II - Hyperball (2026)|Wen 2026]]) and second-order-lite methods (Shampoo/SOAP) — the first serious challenge to Adam's decade of dominance; full family map in [[Optimizer]]
 
 ## Related
 

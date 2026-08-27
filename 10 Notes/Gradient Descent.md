@@ -38,12 +38,12 @@ A velocity accumulator (typically $\mu = 0.9$): consistent gradient directions c
 
 ## Where it sits today
 
-Raw SGD(+momentum) still rules ConvNets; **transformers train poorly with it** — heavy-tailed, anisotropic gradient noise across parameter types (embeddings vs LN gains vs attention) demands per-parameter adaptive scaling → [[Adam Optimizer]] is the de-facto LLM optimizer, with SGD the baseline it's measured against.
+Raw SGD(+momentum) still rules ConvNets; **transformers train poorly with it** — heavy-tailed, anisotropic gradient noise across parameter types (embeddings vs LN gains vs attention) demands per-parameter adaptive scaling → [[AdamW]] is the de-facto LLM optimizer, with SGD the baseline it's measured against.
 
 ## Related
 
-- Gradients from [[Backpropagation]]; adaptive successor [[Adam Optimizer]]
-- $\eta$ scheduling, warmup, and weight decay live in [[Adam Optimizer]]
+- Gradients from [[Backpropagation]]; adaptive successor [[AdamW]]
+- $\eta$ scheduling, warmup, and weight decay live in [[Optimizer]] (Adam-specific mechanics in [[AdamW]])
 - Convergence-speed theory: [[Neural Tangent Kernel]]; guarantees under [[Convexity]]
 - Initialization interaction: [[Weight Initialization]]
 

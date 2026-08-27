@@ -13,8 +13,8 @@ created: 2026-08-25
 - **[[Neural Network]]** — the root: expressivity, generalization, over-parameterization
 - [[Backpropagation]] — gradient computation; the algorithm's cost structure
 - [[Gradient Descent]] — SGD, momentum, why non-convex works
-- [[Optimizers]] — the family: SGD → Adam/AdamW → Shampoo → **Muon**
-- [[Adam Optimizer]] — the incumbent deep-dive: schedules, warmup, memory
+- [[Optimizer]] — the family: SGD → Adam/AdamW → Shampoo → **Muon**; schedules & warmup
+- [[AdamW]] — the incumbent deep-dive: moment equations, the decoupling bug, state memory
 - [[Normalization]] — the family: BatchNorm → LayerNorm → **RMSNorm** + placement
 - [[Weight Initialization]] — Xavier/He, residual scaling, μP transfer
 - [[Neural Tangent Kernel]] — the solvable limit; condition numbers; lazy vs feature learning

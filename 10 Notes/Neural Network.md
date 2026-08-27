@@ -21,7 +21,7 @@ Each layer re-represents its input; depth = repeated composition. Without the [[
 
 ## Training — the three-piece loop
 
-1. **Loss** measuring wrongness → 2. **[[Backpropagation]]** computing all parameter gradients at ~2–3× forward cost → 3. **[[Gradient Descent]]/[[Adam Optimizer]]** updating weights — started from a variance-preserving [[Weight Initialization]], which historically was the difference between "untrainable" and "state of the art" ([[On the Importance of Initialization and Momentum (2013)|Sutskever 2013]]). The idealized-limit theory of this loop is the [[Neural Tangent Kernel]].
+1. **Loss** measuring wrongness → 2. **[[Backpropagation]]** computing all parameter gradients at ~2–3× forward cost → 3. **[[Gradient Descent]]/[[AdamW]]** updating weights — started from a variance-preserving [[Weight Initialization]], which historically was the difference between "untrainable" and "state of the art" ([[On the Importance of Initialization and Momentum (2013)|Sutskever 2013]]). The idealized-limit theory of this loop is the [[Neural Tangent Kernel]].
 
 ## Generalization — the classical puzzle and the modern picture
 
@@ -37,7 +37,7 @@ MLP/feedforward (this note) → CNNs (weight sharing over space; enabled by [[De
 ## Related
 
 - Components: [[Activation Function]], [[Weight Initialization]], [[Residual Connection]], [[Normalization]]
-- Training: [[Backpropagation]], [[Gradient Descent]], [[Adam Optimizer]]; theory: [[Neural Tangent Kernel]]
+- Training: [[Backpropagation]], [[Gradient Descent]], [[AdamW]]; theory: [[Neural Tangent Kernel]]
 - The dominant instance: [[Transformer]]
 
 ## Sources

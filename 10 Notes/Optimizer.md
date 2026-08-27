@@ -3,12 +3,12 @@ type: concept
 topics: [deep-learning, optimization]
 status: evergreen
 created: 2026-08-25
-aliases: [optimizer, Muon, Shampoo, optimizer families]
+aliases: [optimizers, optimizer families, Muon, Shampoo]
 ---
 
-# Optimizers
+# Optimizer
 
-The family of update rules built on [[Gradient Descent]] — what actually turns [[Backpropagation]]'s gradients into weight changes. Deep-dive on the incumbent: [[Adam Optimizer]]. This note maps the whole space.
+The family of update rules built on [[Gradient Descent]] — what actually turns [[Backpropagation]]'s gradients into weight changes. Deep-dive on the incumbent: [[AdamW]]. This note maps the whole space.
 
 ## ⚡ The family tree
 
@@ -17,7 +17,7 @@ The family of update rules built on [[Gradient Descent]] — what actually turns
 | SGD | $\theta \mathrel{-}= \eta g$ | 0 | baseline; see [[Gradient Descent]] |
 | SGD + momentum | velocity EMA | 4 | ConvNet standard ([[On the Importance of Initialization and Momentum (2013)\|Sutskever 2013]]) |
 | AdaGrad → RMSProp | per-param scale from (accumulated → EMA) squared gradients | 4 | the adaptive lineage Adam unified |
-| **Adam / AdamW** | momentum ÷ √(second-moment EMA), decoupled decay | 8 | **the LLM incumbent** — [[Adam Optimizer]] |
+| **Adam / AdamW** | momentum ÷ √(second-moment EMA), decoupled decay | 8 | **the LLM incumbent** — [[AdamW]] |
 | Adafactor | factored second moment (row/col) | ≪8 | memory-constrained (T5-era) |
 | Lion | sign of momentum interpolation | 4 | discovered-by-search; niche |
 | Shampoo / SOAP | full per-matrix preconditioners (Kronecker) | >8 | second-order-lite; strong but heavy |
@@ -37,7 +37,7 @@ The lineage logic: SGD treats all parameters identically → AdaGrad/RMSProp/Ada
 
 Whatever the update rule, the learning rate $\eta$ is never constant:
 
-1. **Warmup** (linear ramp, ~0.1–2k steps): partly architectural — post-norm transformers *need* it to survive large output-layer gradients at init, pre-norm mostly removes the need ([[On Layer Normalization in the Transformer Architecture (2020)|Xiong 2020]]); partly optimizer-specific (Adam's noisy early second-moment estimates — see [[Adam Optimizer]])
+1. **Warmup** (linear ramp, ~0.1–2k steps): partly architectural — post-norm transformers *need* it to survive large output-layer gradients at init, pre-norm mostly removes the need ([[On Layer Normalization in the Transformer Architecture (2020)|Xiong 2020]]); partly optimizer-specific (Adam's noisy early second-moment estimates — see [[AdamW]])
 2. **Decay:** cosine annealing to ~10% of peak (SGDR lineage, [[Decoupled Weight Decay Regularization - AdamW (2017)|same authors as AdamW]]) is the LLM standard; **WSD** (warmup–stable–decay: long constant plateau, short sharp decay) is the rising alternative — mid-plateau checkpoints stay usable for continued training
 3. **Peak $\eta$ scales down with model size** in standard parameterization (≈3e-4 at 100M → ≈1e-4 at 70B) — or is made width-stable by [[Tensor Programs V - muTransfer (2022)|μP]], letting small-model sweeps transfer ([[Weight Initialization]])
 
@@ -50,7 +50,7 @@ Whatever the update rule, the learning rate $\eta$ is never constant:
 
 ## Related
 
-- Base algorithm: [[Gradient Descent]]; incumbent deep-dive: [[Adam Optimizer]]
+- Base algorithm: [[Gradient Descent]]; incumbent deep-dive: [[AdamW]]
 - Conditioning lens for "why optimizer X wins": [[Neural Tangent Kernel]]
 - Interacts with [[Weight Initialization]] (μP) and [[Normalization]] (landscape smoothing; warmup's pre/post-norm origin)
 

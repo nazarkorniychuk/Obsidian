@@ -32,4 +32,4 @@ NorMuon adds neuron-wise second moments (+11% over Muon at 1.1B); fair-benchmark
 
 ## Concepts extracted
 
-- [[Optimizers]] — the post-Adam frontier
+- [[Optimizer]] — the post-Adam frontier

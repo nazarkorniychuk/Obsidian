@@ -53,9 +53,9 @@ Normalization is a reduction (mean/variance across $d$) — cheap in FLOPs but a
 
 ## Related
 
-- Interacts with [[Residual Connection]] (placement = the pre/post question), [[Backpropagation]] (gradient flow), [[Weight Initialization]] (init handles step 0, normalization the rest), [[Adam Optimizer]] (warmup)
+- Interacts with [[Residual Connection]] (placement = the pre/post question), [[Backpropagation]] (gradient flow), [[Weight Initialization]] (init handles step 0, normalization the rest), [[AdamW]] (warmup)
 - Softmax-numerics cousins: router z-loss ([[ST-MoE (2022)]]), logit capping ([[Unembedding]])
-- Mechanism kinship: [[Optimizers]] / [[Neural Tangent Kernel]] conditioning
+- Mechanism kinship: [[Optimizer]] / [[Neural Tangent Kernel]] conditioning
 
 ## Sources
 

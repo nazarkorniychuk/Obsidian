@@ -34,4 +34,4 @@ The literal optimizer string in virtually every LLM training config ("AdamW, β=
 
 ## Concepts extracted
 
-- [[Adam Optimizer]] — the correction that made Adam the LLM default
+- [[AdamW]] — the correction that made Adam the LLM default

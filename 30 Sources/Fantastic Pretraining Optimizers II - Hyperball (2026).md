@@ -31,4 +31,4 @@ Two lessons: (1) headline optimizer speedups must be read against scale (small-s
 
 ## Concepts extracted
 
-- [[Optimizers]] — the benchmark-honesty caveat
+- [[Optimizer]] — the benchmark-honesty caveat

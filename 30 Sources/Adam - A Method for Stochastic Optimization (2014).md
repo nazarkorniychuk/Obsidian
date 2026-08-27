@@ -37,4 +37,4 @@ With the [[Decoupled Weight Decay Regularization - AdamW (2017)|AdamW]] correcti
 
 ## Concepts extracted
 
-- [[Adam Optimizer]] — the algorithm
+- [[AdamW]] — the algorithm

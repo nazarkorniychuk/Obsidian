@@ -33,7 +33,7 @@ The math (reverse-mode AD) predates the fame: Linnainmaa 1970, Werbos 1974 for n
 
 ## Related
 
-- Supplies gradients to [[Gradient Descent]] / [[Adam Optimizer]]
+- Supplies gradients to [[Gradient Descent]] / [[AdamW]]
 - Its failure modes shaped [[Activation Function]], [[Residual Connection]], [[Normalization]], [[Weight Initialization]]
 - Cost structure drives [[Flash Attention]]-style recomputation and training-memory engineering
 - Linearized view of its dynamics = [[Neural Tangent Kernel]]
