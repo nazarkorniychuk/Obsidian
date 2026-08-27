@@ -4,11 +4,12 @@ type: dashboard
 
 # 🏠 Home
 
-> Entry point. Navigate by [[Deep Learning MOC|the map]] or `Cmd+O` — never by folder.
+> Entry point. Navigate by [[Deep Learning Basics|the map]] or `Cmd+O` — never by folder.
 
 ## 🗺 Maps
 
-- **[[Deep Learning MOC]]** — the whole cluster, organized
+- **[[Deep Learning Basics]]** — the whole cluster, organized
+- **[[RL MOC]]** — reinforcement learning (skeleton, filling in)
 - Hubs: [[Transformer]] (architecture) · [[Neural Network]] (foundations)
 
 ## 🕐 Recently edited

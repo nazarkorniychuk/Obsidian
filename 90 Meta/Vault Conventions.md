@@ -13,7 +13,7 @@ The rules, as actually practiced.
 | --- | --- |
 | `00 Inbox/` | captured stubs; graduate to `10 Notes/` when written, weekly sweep |
 | `10 Notes/` | atomic concept notes — flat, no subfolders |
-| `20 Maps/` | MOCs; [[Deep Learning MOC]] is the master map |
+| `20 Maps/` | MOCs, one per domain: [[Deep Learning Basics]], [[RL MOC]] |
 | `30 Sources/` | one page per paper: summary, key results, links, consensus URL + DOI |
 | `Attachments/` | charts (matplotlib, house palette), Excalidraw |
 

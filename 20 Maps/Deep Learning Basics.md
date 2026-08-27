@@ -2,9 +2,10 @@
 type: moc
 topics: [deep-learning]
 created: 2026-08-25
+aliases: [Deep Learning MOC, DL Basics]
 ---
 
-# Deep Learning MOC
+# Deep Learning Basics
 
 > Parent: [[Home]] · The map of the vault's deep-learning knowledge. Hub notes in **bold**.
 
@@ -46,7 +47,7 @@ created: 2026-08-25
 
 - [[State Space Models]] / [[Mamba]] — post-transformer (sources staged in [[Linear Attention]])
 - Quantization · Speculative decoding — the serving pair
-- RLHF / DPO / GRPO — post-training cluster
+- RLHF / DPO / GRPO — post-training cluster → now mapped in [[RL MOC]]
 - [[ROME]] · [[MEMIT]] — knowledge editing (inbox)
 
 ## 📚 Source library
