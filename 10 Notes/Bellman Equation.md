@@ -74,22 +74,54 @@ One derived quantity worth naming now: the **advantage** $A^\pi(s,a) = Q^\pi(s,a
 
 ## Why a solution exists at all: the contraction
 
-Define the **Bellman operator** $T$: take any guess table $V$ (even garbage), and back it up one step everywhere — $(TV)(s) = \max_a \sum_{s'} P(s' \mid s,a)[r + \gamma V(s')]$. The key property ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]]):
+The Bellman optimality equation is $|\mathcal{S}|$ coupled nonlinear equations. Before trying to solve it, three questions need answers: does a solution exist? Is it unique? Can we compute it? One property answers all three.
+
+**The Bellman operator.** Define $T$ as a machine that eats an entire value table and outputs a new one: for every state, *pretend the input table is correct about the future* and recompute the present by one step of lookahead:
+
+$$(TV)(s) = \max_a \sum_{s'} P(s' \mid s,a)\,[\,r + \gamma V(s')\,]$$
+
+The input $V$ can be garbage — $T$ doesn't care. Two observations connect $T$ to the problem:
+
+- A table with $TV = V$ (recomputing changes nothing — a **fixed point**) is *exactly* a table satisfying the optimality equation. "Solve the Bellman equation" = "find the fixed point of $T$"
+- Measure distance between tables by their **largest per-state disagreement**: $\|V - U\|_\infty = \max_s |V(s) - U(s)|$ (the sup-norm)
+
+**The key property** ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]]): $T$ is a **γ-contraction**,
 
 $$\|TV - TU\|_\infty \le \gamma\,\|V - U\|_\infty$$
 
-**In words: applying $T$ to two different guesses pulls them at least a factor γ closer** (in the worst-case entry). Why: the two guesses only enter through the future term, which is weighted by γ. Consequences, all free from Banach's fixed-point theorem:
+*Why:* compare $(TV)(s)$ and $(TU)(s)$. The reward terms are identical — the two tables only enter through $\gamma V(s')$ vs $\gamma U(s')$, averaged over probabilities that sum to 1. An average of disagreements can't exceed the largest disagreement, and the γ in front shrinks it: the outputs differ by at most $\gamma \times$ the biggest input disagreement. **Every application of $T$ shrinks any disagreement by at least a factor γ.**
 
-- **Existence + uniqueness:** a contraction has exactly one fixed point — and a fixed point of $T$ is precisely a table satisfying the optimality equation, i.e. $V^*$. So $V^*$ exists, is unique, and iterating $T$ from *any* start converges to it
-- **Speed:** error shrinks geometrically, $\|V_k - V^*\|_\infty \le \gamma^k \|V_0 - V^*\|_\infty$; precision $\epsilon$ takes $k \approx \tfrac{\ln(1/\epsilon)}{1-\gamma}$ sweeps — the $\tfrac{1}{1-\gamma}$ horizon tax from the [[Markov Decision Process|MDP note]] again
-- **Robustness:** acting greedily on an *approximate* $V$ with error $\epsilon$ costs at most $\tfrac{2\gamma\epsilon}{1-\gamma}$ in policy quality ([[Dynamic Programming and Optimal Control - Bertsekas (1995)|Bertsekas 1995]]) — small value errors stay small, but get amplified by the horizon
+**What contraction buys — all three answers at once:**
+
+- **Uniqueness:** two different fixed points would have to be γ-closer to each other than they are to themselves — impossible unless their distance is 0. At most one solution
+- **Existence + computability:** start from *any* table $V_0$ and iterate $V_{k+1} = TV_k$. Since $T$ shrinks the distance to the (eventual) fixed point by γ per step, the iterates converge — and the limit is $V^*$. Watch it run on the note's 2-state example ($a_1$: reward 3, $A{\to}B$; $a_2$: reward 1, stay; $B$: reward 0, ${\to}A$; γ = 0.5), starting from all-zeros:
+
+| sweep | $V(A)$ | $V(B)$ | worst error vs $(4, 2)$ |
+|---|---|---|---|
+| 0 | 0 | 0 | 4 |
+| 1 | 3 | 0 | 2 |
+| 2 | 3 | 1.5 | 1 |
+| 3 | 3.75 | 1.5 | 0.5 |
+| 4 | 3.75 | 1.875 | 0.25 |
+| … | → 4 | → 2 | halves each sweep = $\gamma^k$ |
+
+- **Speed:** the table shows the general law, $\|V_k - V^*\|_\infty \le \gamma^k \|V_0 - V^*\|_\infty$. Precision $\epsilon$ needs $k \approx \tfrac{\ln(1/\epsilon)}{1-\gamma}$ sweeps. Here γ = 0.5 → error halves per sweep; at γ = 0.99 each sweep removes only 1% of the error (~460 sweeps for 1% precision) — the $\tfrac{1}{1-\gamma}$ horizon tax from the [[Markov Decision Process|MDP note]], now as compute
+- **Robustness:** if you stop early / approximate, acting greedily on a $V$ that's off by $\epsilon$ costs at most $\tfrac{2\gamma\epsilon}{1-\gamma}$ in policy quality ([[Dynamic Programming and Optimal Control - Bertsekas (1995)|Bertsekas 1995]]) — value errors don't explode into arbitrarily bad behavior, but the horizon amplifies them
 
 ## The two classical solvers
 
-- **Value iteration (VI):** literally iterate $V_{k+1} = TV_k$ until values stop changing, then act greedily. Simple, global, but converges at the linear rate γ — slow when γ ≈ 1
-- **Policy iteration (PI):** alternate two steps — **evaluate** the current policy exactly (solve the linear expectation equation for $V^{\pi_k}$), then **improve** it (make the policy greedy w.r.t. $V^{\pi_k}$: in each state, switch to the action that looks best under the just-computed values). Each round produces a policy at least as good in every state; with finitely many policies, it terminates exactly ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]])
-- **Result — why PI converges in so few rounds:** PI is exactly the **(semismooth) Newton method** applied to the Bellman equation, so it inherits **local quadratic convergence**, while VI is plain fixed-point iteration ([[Dynamic Programming as Semismooth Newton (2022)|Gargiani 2022]]). PI : VI :: Newton : gradient descent — the empirical "PI needs ~5 iterations on huge MDPs" finally has a textbook explanation
-- Also solvable as a **linear program** (min $\sum_s V(s)$ s.t. $V \ge TV$); its dual optimizes over state–action *occupancy measures* — the formulation offline-RL and constrained-RL theory builds on ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]])
+**Value iteration (VI)** is the convergence proof used as an algorithm: iterate $V_{k+1} = TV_k$ until successive tables barely change, then act greedily. The table above *is* VI running. Simple and global, but the rate is the contraction rate γ — painfully slow when γ ≈ 1 (long horizons).
+
+**Policy iteration (PI)** exploits the split from the [evaluation vs optimality section](#two-different-problems-hide-in-that-table): evaluation is cheap (linear), so use it as a subroutine. Alternate:
+
+1. **Evaluate:** solve the linear system for $V^{\pi_k}$ — exact values of the *current* policy
+2. **Improve:** in every state, switch to the action with the best one-step lookahead under those values: $\pi_{k+1}(s) = \arg\max_a \sum_{s'}P(s'\mid s,a)[r + \gamma V^{\pi_k}(s')]$
+
+On the running example, starting from the *wrong* policy π₀ = "stay in A": evaluate → $V(A) = 1 + 0.5V(A) \Rightarrow V(A)=2,\ V(B)=1$; improve → compare $Q(A,a_1) = 3 + 0.5{\cdot}1 = 3.5$ vs $Q(A,a_2) = 2$ → switch to $a_1$; evaluate → $(4,2)$; improve → no switch. **Converged exactly, in 2 rounds.** Why each round can only help (*policy improvement theorem*): the evaluation is honest about $\pi_k$, so switching to actions that look strictly better under it makes the new policy at least as good *in every state*; with finitely many policies and no repeats, PI terminates in finite time ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]]).
+
+**Why PI is so much faster than VI:** each policy pins down one linear "branch" of the piecewise-linear optimality equation, and PI's evaluate step solves that branch *completely* in one shot — then improvement jumps branches. That is structurally the **Newton method** (solve the local linearization exactly, jump, re-linearize): PI is precisely semismooth Newton on the Bellman equation and inherits **local quadratic convergence** — error *squares* per round near the solution — while VI takes fixed-size γ-steps ([[Dynamic Programming as Semismooth Newton (2022)|Gargiani 2022]]). PI : VI :: Newton : gradient descent; the empirical "PI needs ~5 rounds on huge MDPs" has a textbook explanation.
+
+**The third route — linear programming:** $\min_V \sum_s V(s)$ subject to $V \ge TV$. Any table with $V \ge TV$ overestimates $V^*$ everywhere (backing up an overestimate keeps it an overestimate), so the smallest such table *is* $V^*$ — and the max disappears into $|\mathcal{A}|$ linear constraints per state. The dual LP optimizes over **occupancy measures** (expected discounted visit-counts per state–action) — the language offline-RL and constrained-RL theory is written in ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]]).
 
 Both solvers assume $P$ and $R$ are **known** and $|\mathcal{S}|$ is **enumerable**. RL is what remains when neither holds.
 
