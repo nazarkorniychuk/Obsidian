@@ -35,10 +35,15 @@ Two axes: value of *states* ($V$) vs *state–action pairs* ($Q$), and value of 
 | $V^*(s)$ | how good is $s$ if you play perfectly | $V^*(s) = \max_a \sum_{s'} P(s' \mid s,a)\,[r + \gamma V^*(s')]$ |
 | $Q^*(s,a)$ | how good is $a$ in $s$, then perfect play | $Q^* = r(s,a) + \gamma \sum_{s'} P\, \max_{a'} Q^*(s',a')$ |
 
-Two structural facts to read off:
+**Linear vs nonlinear — why evaluation is easy and optimality is hard.** Fix the policy and look at the expectation equation: the unknowns are the $|\mathcal{S}|$ numbers $V^\pi(s)$, and each appears only multiplied by *fixed constants* (transition probabilities × γ) — never inside a max, a square, or a product with another value. That is the definition of a linear system: $|\mathcal{S}|$ equations, $|\mathcal{S}|$ unknowns. In matrix form, with $P_\pi$ = the state→state transition matrix under $\pi$ and $r_\pi$ = expected one-step rewards:
 
-- The **expectation** equations (top) are **linear** in the values → evaluating a fixed policy is "just" solving a linear system. The **optimality** equations (bottom) contain a **max** → nonlinear, and the real object of RL
-- **Why algorithms learn $Q$ rather than $V$:** given $Q^*$, acting optimally is a lookup — $\pi^*(s) = \arg\max_a Q^*(s,a)$. Given only $V^*$, choosing an action requires imagining outcomes ("which $a$ leads to high-value states?"), i.e. it requires knowing $P$. $Q$ has the one-step lookahead *baked in* — that's the entire reason model-free control works
+$$V^\pi = r_\pi + \gamma P_\pi V^\pi \quad\Longrightarrow\quad V^\pi = (I - \gamma P_\pi)^{-1} r_\pi$$
+
+One matrix inversion, $O(|\mathcal{S}|^3)$, and the inverse always exists because $\gamma < 1$. **Evaluating a known policy is not a learning problem at all — it's linear algebra.** (This exact solve is the "evaluate" half of policy iteration below.)
+
+The optimality equation replaces the policy average $\sum_a \pi(a \mid s)$ with $\max_a$ — and the max destroys linearity for one concrete reason: **which action achieves the max depends on the values you're still solving for.** To rewrite it as a linear system you'd have to already know the best action in every state — but that's precisely the policy you're trying to find. Values need the policy; the policy needs the values. This circularity *is* the mathematical content of "finding optimal behavior is hard," and the two classical solvers below are the two ways of breaking it: value iteration just iterates the nonlinear equation; policy iteration guesses the argmax pattern (= a policy), does the linear solve, and re-guesses. The saving grace: the max is a *tame* nonlinearity — piecewise-linear, monotone, and still a γ-contraction — so the fixed-point machinery in the next section survives it.
+
+**Why algorithms learn $Q$ rather than $V$:** given $Q^*$, acting optimally is a lookup — $\pi^*(s) = \arg\max_a Q^*(s,a)$. Given only $V^*$, choosing an action requires imagining outcomes ("which $a$ leads to high-value states?"), i.e. it requires knowing $P$. $Q$ has the one-step lookahead *baked in* — that's the entire reason model-free control works.
 
 One derived quantity worth naming now: the **advantage** $A^\pi(s,a) = Q^\pi(s,a) - V^\pi(s)$ — "how much better is action $a$ than what $\pi$ would do on average here." It's zero-mean under $\pi$, which makes it the natural low-variance learning signal — the currency of all [[Policy Gradient|policy-gradient]] methods.
 
