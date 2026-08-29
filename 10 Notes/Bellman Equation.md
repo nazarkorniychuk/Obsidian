@@ -16,13 +16,23 @@ $$V^\pi(s) = \mathbb{E}_\pi[G_t \mid s_t = s] \qquad \text{"expected total rewar
 
 Computed naively, this is an expectation over infinitely many infinitely-long trajectories — hopeless. The Bellman equation is the observation that makes it computable at all.
 
-## The recursion: one step of lookahead replaces the infinite sum
+## What the Bellman equation is, concretely
 
-The return telescopes: $G_t = r_{t+1} + \gamma\, G_{t+1}$ — total future reward = the next reward + the discounted total after that. Take expectations of both sides and the value of *now* becomes reward plus the value of *next*:
+**Definition.** The Bellman equation is a **self-consistency condition on a value function**: the value of a state must equal the expected one-step reward plus γ times the value of the state you land in,
+
+$$V(s) \;=\; \mathbb{E}\big[\, \underbrace{r_{t+1}}_{\text{one step of reward}} +\; \gamma \underbrace{V(s_{t+1})}_{\text{value of wherever you land}} \;\big|\; s_t = s \,\big] \qquad \text{for every state } s.$$
+
+Three things to be precise about:
+
+- **It's a system, not a formula.** One equation *per state*; the unknown is the entire table $V$. The equation doesn't hand you any value directly — it *constrains neighboring values to agree with each other*, and the value function is the (unique, see contraction below) table satisfying all $|\mathcal{S}|$ constraints simultaneously
+- **Where it comes from:** the return telescopes, $G_t = r_{t+1} + \gamma\, G_{t+1}$ — total future reward = next reward + discounted total after that. Take the expectation of both sides conditioned on $s_t = s$, and the definition $V(s) = \mathbb{E}[G_t \mid s_t = s]$ turns into the equation above. No approximation anywhere — the infinite horizon is hiding inside the $V(s_{t+1})$ term
+- **Why it matters:** the definition of $V$ averages over infinitely many, infinitely long futures; the Bellman equation pins down the *same numbers* using only **one step of lookahead**. A finite system of equations replaces an infinite simulation. That swap is what "dynamic programming" means, and every value-based RL method inherits it
+
+"The" Bellman equation is really a family: fill in *how actions get chosen* and the expectation becomes explicit sums. Choosing actions by a given policy $\pi$ yields the **expectation equation**:
 
 $$V^\pi(s) = \underbrace{\sum_a \pi(a \mid s)}_{\text{actions } \pi \text{ might take}} \underbrace{\sum_{s'} P(s' \mid s,a)}_{\text{where the world lands}} \big[\underbrace{r(s,a)}_{\text{paid now}} + \gamma\, \underbrace{V^\pi(s')}_{\text{everything after}}\big]$$
 
-This is the **Bellman expectation equation**. Nothing was approximated — the infinite horizon is hiding inside $V^\pi(s')$, and the equation just says the values at neighboring states must be *consistent* with each other. One equation per state, $|\mathcal{S}|$ unknowns: a solvable system instead of an infinite simulation. That single move — replace "sum over futures" with "local consistency between neighbors" — is dynamic programming, and it's the trick every value-based RL method inherits.
+Choosing the *best* action instead ($\max_a$ in place of $\sum_a \pi$) yields the **optimality equation** — the full family of four is next.
 
 ## The four equations
 
