@@ -35,13 +35,28 @@ Two axes: value of *states* ($V$) vs *state–action pairs* ($Q$), and value of 
 | $V^*(s)$ | how good is $s$ if you play perfectly | $V^*(s) = \max_a \sum_{s'} P(s' \mid s,a)\,[r + \gamma V^*(s')]$ |
 | $Q^*(s,a)$ | how good is $a$ in $s$, then perfect play | $Q^* = r(s,a) + \gamma \sum_{s'} P\, \max_{a'} Q^*(s',a')$ |
 
-**Linear vs nonlinear — why evaluation is easy and optimality is hard.** Fix the policy and look at the expectation equation: the unknowns are the $|\mathcal{S}|$ numbers $V^\pi(s)$, and each appears only multiplied by *fixed constants* (transition probabilities × γ) — never inside a max, a square, or a product with another value. That is the definition of a linear system: $|\mathcal{S}|$ equations, $|\mathcal{S}|$ unknowns. In matrix form, with $P_\pi$ = the state→state transition matrix under $\pi$ and $r_\pi$ = expected one-step rewards:
+### Two different problems hide in that table
+
+The table mixes two *tasks*, and everything downstream depends on telling them apart:
+
+- **Policy evaluation** — someone hands you a specific policy $\pi$ ("always move toward the goal") and asks: *how good is it?* Compute the table $V^\pi(s)$ for all $s$. You are grading given behavior, not improving it
+- **Optimal control** — nobody hands you anything. Find the best achievable values $V^*(s) = \max_\pi V^\pi(s)$ and a policy that attains them. This is the actual goal of RL; evaluation is its subroutine
+
+**Evaluation is a linear system.** In the $V^\pi$ equation the unknowns are the $|\mathcal{S}|$ numbers $V^\pi(s)$, and each appears only multiplied by known constants ($\gamma \times$ probabilities) — never inside a max or a product with another unknown. So it's $|\mathcal{S}|$ linear equations in $|\mathcal{S}|$ unknowns. Tiny worked example — two states, $\gamma = 0.5$, one action per state (that's the "fixed policy"): from $A$ you get reward 3 and land in $B$; from $B$ reward 0 and back to $A$:
+
+$$V(A) = 3 + 0.5\,V(B), \qquad V(B) = 0 + 0.5\,V(A)$$
+
+Substitute: $V(A) = 3 + 0.25\,V(A) \Rightarrow V(A) = 4,\; V(B) = 2$. Done — no learning, no iteration, just algebra. In general, stacking the equations into vectors ($P_\pi$ = transition matrix under $\pi$, $r_\pi$ = expected rewards):
 
 $$V^\pi = r_\pi + \gamma P_\pi V^\pi \quad\Longrightarrow\quad V^\pi = (I - \gamma P_\pi)^{-1} r_\pi$$
 
-One matrix inversion, $O(|\mathcal{S}|^3)$, and the inverse always exists because $\gamma < 1$. **Evaluating a known policy is not a learning problem at all — it's linear algebra.** (This exact solve is the "evaluate" half of policy iteration below.)
+— one matrix inversion, $O(|\mathcal{S}|^3)$, the inverse existing because $\gamma < 1$. This exact solve is the "evaluate" half of policy iteration below.
 
-The optimality equation replaces the policy average $\sum_a \pi(a \mid s)$ with $\max_a$ — and the max destroys linearity for one concrete reason: **which action achieves the max depends on the values you're still solving for.** To rewrite it as a linear system you'd have to already know the best action in every state — but that's precisely the policy you're trying to find. Values need the policy; the policy needs the values. This circularity *is* the mathematical content of "finding optimal behavior is hard," and the two classical solvers below are the two ways of breaking it: value iteration just iterates the nonlinear equation; policy iteration guesses the argmax pattern (= a policy), does the linear solve, and re-guesses. The saving grace: the max is a *tame* nonlinearity — piecewise-linear, monotone, and still a γ-contraction — so the fixed-point machinery in the next section survives it.
+**Optimality is not, because of the max.** Give state $A$ a second action: $a_1$ = reward 3, go to $B$ (as before); $a_2$ = reward 1, stay in $A$. The optimality equation now reads
+
+$$V^*(A) = \max\big\{\underbrace{3 + 0.5\,V^*(B)}_{a_1},\; \underbrace{1 + 0.5\,V^*(A)}_{a_2}\big\}, \qquad V^*(B) = 0.5\,V^*(A)$$
+
+You cannot solve this as a linear system, because **you don't know which branch of the max is active until you already know the values** — and the values depend on the branch. The only way through is guess-and-verify: *assume* $a_1$ wins → linear solve gives $V^*(A) = 4, V^*(B) = 2$ → check the other branch: $1 + 0.5 \cdot 4 = 3 < 4$ ✓, guess confirmed. With 2 actions in each of $K$ states there are $2^K$ possible branch patterns — each pattern *is* a candidate policy, and you can't enumerate them. Value iteration and policy iteration (below) are the two systematic ways to navigate this: VI iterates the max-equation directly; PI is exactly the guess-a-branch-pattern → linear-solve → re-guess loop from this example, automated. The circularity — *values need the policy, the policy needs the values* — is the mathematical content of "finding optimal behavior is hard." Saving grace: the max is a tame nonlinearity (piecewise-linear, monotone, still a γ-contraction), so the fixed-point machinery below survives it.
 
 **Why algorithms learn $Q$ rather than $V$:** given $Q^*$, acting optimally is a lookup — $\pi^*(s) = \arg\max_a Q^*(s,a)$. Given only $V^*$, choosing an action requires imagining outcomes ("which $a$ leads to high-value states?"), i.e. it requires knowing $P$. $Q$ has the one-step lookahead *baked in* — that's the entire reason model-free control works.
 
