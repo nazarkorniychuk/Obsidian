@@ -25,10 +25,16 @@ Goal: $\max_\pi \mathbb{E}_\pi[G_t]$. Values of states/actions under this object
 
 ## The Markov property is the load-bearing assumption
 
-$P(s_{t+1} \mid s_t, a_t) = P(s_{t+1} \mid s_0, a_0, \dots, s_t, a_t)$ — the state is a **sufficient statistic of history**. What it buys ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]]):
+$P(s_{t+1} \mid s_t, a_t) = P(s_{t+1} \mid s_0, a_0, \dots, s_t, a_t)$ — the state is a **sufficient statistic of history**: for predicting the future, knowing more of the past adds nothing. Markov-ness is a property of your *state design*, not of the world: a ball's position alone is not Markov (rising vs falling), (position, velocity) is — history gets absorbed into the state.
 
-- **Results:** for finite discounted MDPs an optimal policy always exists that is **stationary and deterministic** — searching over history-dependent or randomized policies gains nothing. This is why $\pi(a\mid s)$, a per-state lookup, is the right object at all
-- If the observation is *not* Markov (you see a camera image, not the world state), the problem is a **POMDP**: the sufficient statistic becomes the *belief state* (posterior over states), which is a continuous object — exactly why partial observability is qualitatively harder, and why deep agents bolt on recurrence/frame-stacking to approximately re-Markovize the input
+**Result** ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]]): for finite discounted MDPs an optimal policy always exists that is
+
+- **stationary** — same rule at every timestep, $\pi(a\mid s)$ doesn't depend on $t$. (Holds because the infinite discounted future looks identical from $s$ at any time; *fails* for finite horizons, where time-left changes the best action)
+- **deterministic** — one fixed action per state, no randomization. (Randomizing averages Q-values; an average never beats $\arg\max_a Q^*(s,a)$)
+
+So the search space collapses from all history-dependent randomized rules to the **finite set of $|\mathcal{A}|^{|\mathcal{S}|}$ lookup tables** — why policy iteration can terminate finitely at all.
+
+**POMDP** (partially observable MDP): you don't see the state $s_t$, only an observation $o_t \sim O(\cdot\mid s_t)$ — a camera frame, not the world. Different states can emit the same observation (*aliasing*), so the future now genuinely depends on history. The fix is the **belief state** $b_t(s) = P(s_t{=}s \mid o_{1:t}, a_{1:t})$ — a probability distribution over states, updated by Bayes each step. That makes it an MDP again, but over a *continuous* space of distributions: qualitatively harder (exact planning is PSPACE-hard vs polynomial for MDPs). Deep agents approximate the belief cheaply: **frame-stacking** (4 Atari frames ⇒ velocity recoverable) or **recurrence** (hidden state = learned compressed history)
 
 ## Discounting: γ is a horizon knob, not a detail
 
