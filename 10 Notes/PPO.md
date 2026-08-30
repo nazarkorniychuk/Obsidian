@@ -46,6 +46,12 @@ $$\nabla_\theta\, r\,\big|_{\theta_{old}} = \frac{\nabla_\theta \pi_\theta}{\pi_
 
 So the *first* step on $L$ is exactly the policy-gradient step. The only open question is wish (b): **how far may we keep climbing?**
 
+**Why only at $\theta_{old}$ — and why that's enough.** At a general θ the equality is *false*, and computing both sides shows exactly where:
+
+$$\nabla L(\theta) = \mathbb{E}_{\,s \sim \pi_{old}\text{'s states}}\,\mathbb{E}_{\,a \sim \pi_\theta}\big[\hat{A}^{\pi_{old}}\,\nabla\log\pi_\theta\big] \qquad \text{vs} \qquad \nabla J(\theta) = \mathbb{E}_{\,s \sim \pi_\theta\text{'s states}}\,\mathbb{E}_{\,a \sim \pi_\theta}\big[A^{\pi_\theta}\,\nabla\log\pi_\theta\big]$$
+
+The ratio has fixed the **action** distribution perfectly — both are $a \sim \pi_\theta$, at *every* θ. What stays stale: the **states** (frozen where $\pi_{old}$ went — Crack 2 below) and the **advantages** (the old policy's judgments, not the new one's). Both mismatches vanish at $\theta_{old}$ and grow with distance. And the argument never needs gradient equality away from the anchor — Step 5's *touching lower bound* does the work instead: if $L - C\cdot\text{KL}$ sits below $J$ everywhere and touches it at $\theta_{old}$, then pushing it up forces $J$ up, regardless of whose gradient points where at the destination.
+
 **Step 3 — the two cracks, and how they grow with distance.**
 
 - **Crack 1 — ratio variance.** Let $\pi_\theta$ favor an action $\pi_{old}$ rarely tried: $\pi_{old}(a) = 0.01,\ \pi_\theta(a) = 0.5 \Rightarrow r = 50$. The estimate of $L$ now hangs on the few lucky samples of that action, each weighted 50 — correct on average, wild in practice
