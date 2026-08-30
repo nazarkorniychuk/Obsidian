@@ -33,10 +33,10 @@ Three placements that are easy to get wrong (and that the notes argue in full):
 
 ## The fork before the loop: planning vs learning
 
-| you have | you do | note |
-|---|---|---|
-| the full model $(P, R)$ as tables | **planning** — pure computation, no acting, no exploration concept; value/policy iteration | [[Bellman Equation]] |
-| only the ability to act and observe | **learning** — the same Bellman backups rebuilt from one sampled transition at a time | [[Temporal Difference Learning]] |
+| you have                            | you do                                                                                     | note                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------- |
+| the full model $(P, R)$ as tables   | **planning** — pure computation, no acting, no exploration concept; value/policy iteration | [[Bellman Equation]]             |
+| only the ability to act and observe | **learning** — the same Bellman backups rebuilt from one sampled transition at a time      | [[Temporal Difference Learning]] |
 
 Learning inherits everything from planning *plus* two new problems: sampling noise (→ step sizes, variance) and **coverage** — you only learn about what you visit, so exploration stops being optional and becomes a convergence precondition ([[Exploration vs Exploitation]]).
 

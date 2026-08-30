@@ -19,8 +19,8 @@ aliases: [Reinforcement Learning MOC, RL Basics]
 
 ## 🎯 Value-based methods
 
-- [[Q-Learning]] — off-policy TD control; convergence conditions
-- [[Deep Q-Network]] — replay buffer, target networks, the deadly triad; Double/Dueling/Rainbow lineage
+- [[Q-Learning]] — sampled value iteration: the max target, off-policy, overestimation bias + Double fix
+- [[Deep Q-Network]] — replay + target network vs the deadly triad; the Double → PER → Dueling → C51 → Rainbow lineage
 
 ## 🧭 Policy-gradient methods
 
