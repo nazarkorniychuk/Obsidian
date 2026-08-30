@@ -81,23 +81,33 @@ Real state spaces don't fit in tables ([[Markov Decision Process#The curse of di
 
 ### The deadly triad
 
-The negative results above crystallize into one named pattern ([[Reinforcement Learning - An Introduction (1998)|Sutton & Barto]]'s name). Three ingredients:
+Tabular Q-learning provably converges; DQN-style training sometimes explodes. The **deadly triad** ([[Reinforcement Learning - An Introduction (1998)|Sutton & Barto]]'s name) is the precise answer to *"what changed?"* — three ingredients, each individually harmless, jointly explosive. Take them one at a time.
 
-1. **Function approximation** — values come from a shared parametric model, so every update *leaks*: changing θ to fix one state moves the estimates of many others
-2. **Bootstrapping** — the training target contains your own estimate, so when θ moves, *the target you're chasing moves with it*
-3. **Off-policy data** — states are weighted by a distribution different from the one the learned policy would visit, so errors can grow at states the data never corrects
+**Leg 1 — function approximation: updates *leak*.** In the tabular world, the value function is a spreadsheet: updating $V(s_3)$ touches cell 3 and nothing else. With a parametric $V_\theta$ there *are* no cells — every state's estimate is computed from the **same shared parameters θ**. Nudge θ to fix state A's estimate and every state reading those parameters moves too, invited or not. This is *generalization* — the entire reason huge state spaces are tractable — but seen from the stability side, it means **no update stays where you aimed it**.
 
-**Any two are safe — and each pair's safety is a result you've already met:**
+**Leg 2 — bootstrapping: the target moves when you do.** In supervised learning the target $y$ is a fixed label in a dataset: minimize $(y - f_\theta(x))^2$, descend, arrive. TD's target $r + \gamma V_\theta(s')$ **contains θ itself** — so every gradient step taken *toward* the target also *moves* the target. You are not descending toward a fixed point; you are chasing something strapped to your own back. On-policy, the chase provably spirals inward (Tsitsiklis–Van Roy above). But nothing about gradient descent guarantees that in general — whether the chase closes or runs away depends on the geometry.
 
-| pair present | why it's safe | who proved it |
-|---|---|---|
-| FA + bootstrapping, on-policy | updates weighted by the chain's own visit distribution → the contraction survives | [[An Analysis of Temporal-Difference Learning with Function Approximation (1997)\|Tsitsiklis & Van Roy]] |
-| FA + off-policy, no bootstrap | Monte Carlo targets are fixed numbers → just weighted supervised regression | ordinary supervised learning |
-| bootstrapping + off-policy, tabular | no leakage — each cell is updated exactly, alone | [[Q-learning - Watkins & Dayan (1992)\|Watkins & Dayan]] |
+**Leg 3 — off-policy: errors grow where they are never corrected.** The fine print of the Tsitsiklis–Van Roy proof: states must be updated **in proportion to how often the evaluated policy visits them**. That weighting is load-bearing — whatever error leg 1 leaks into a state gets corrected *at the rate that state matters*. Update under a different distribution (replayed old data, greedy-target weighting while behaving exploratorily) and some states absorb leaked errors **faster than they are ever visited and repaired**.
 
-**All three together can diverge.** The conspiracy runs as a loop: the off-policy weighting overtrains some states → approximation *leaks* the resulting error into neighboring states' estimates → bootstrapping *copies* the leaked error into fresh targets → the data distribution never visits the places where the error could be corrected → repeat, amplifying. Canonical demo: **Baird's counterexample** — 7 states, linearly independent features, the exact solution perfectly *representable*, and off-policy Q-learning's values run off to infinity anyway ([[Off-Policy TD with Function Approximation - Precup (2001)|Precup 2001]]).
+**Watch all three conspire — a divergence you can compute by hand.** Two states, **all rewards 0**, so the truth is $V(A) = V(B) = 0$. One shared parameter (leg 1 at its purest):
 
-**Living with it — the triad is engineered around, never solved:** [[Deep Q-Network|DQN]]'s target network freezes the bootstrap target (weakens leg 2); its replay buffer mixes many recent policies into something closer to a stationary distribution (tempers leg 3); and on-policy methods like [[PPO]] drop leg 3 outright — one reason the policy-gradient branch, not the value-based one, ended up carrying LLM training.
+$$V_\theta(A) = \theta, \qquad V_\theta(B) = 2\theta, \qquad A \to B \text{ always}, \quad \gamma = 0.95$$
+
+Let the update distribution only ever process the $A \to B$ transition — state B itself is never updated (leg 3). One TD step for A, with α = 0.1:
+
+$$\text{target} = 0 + \gamma\, V_\theta(B) = 1.9\,\theta \;\;\text{(leg 2: θ inside the target)}, \qquad \delta = 1.9\theta - \theta = 0.9\,\theta, \qquad \theta \leftarrow \theta + 0.1\,(0.9\theta) = 1.09\,\theta$$
+
+Start at θ = 1 and iterate: $1 \to 1.09 \to 1.19 \to 1.30 \to 1.41 \to \dots$ — **+9% per update, forever**, even though every observed reward is 0 and the true values are 0. The mechanism, turn by turn: A looks too low next to its target 1.9θ, so θ goes up → but raising θ raises B's estimate *twice as fast* (leak) → which raises A's target *faster than A is chasing it* (bootstrap) → and B, where the inflation actually lives, is **never updated against reality** (off-policy), so nothing ever pulls it down. The error term $0.9\theta$ is proportional to θ itself: exponential blow-up. (Baird's counterexample is this skeleton scaled to 7 states, where even *linearly independent* features and a perfectly representable solution don't save you — [[Off-Policy TD with Function Approximation - Precup (2001)|Precup 2001]].)
+
+**Now remove one leg at a time and watch the divergence die** — this is the real content of "any two are safe":
+
+- **Remove leg 1 (go tabular):** $V(A)$ and $V(B)$ become separate cells. Updating A toward $\gamma V(B)$ no longer *changes* $V(B)$ — the leak is gone; once B occasionally gets its own update, both settle to 0. This is why bootstrap + off-policy is safe in tables: **no leakage, each cell converges alone** ([[Q-learning - Watkins & Dayan (1992)|Watkins & Dayan]])
+- **Remove leg 2 (Monte Carlo targets):** the target becomes the *actual observed return* = 0 — a fixed number, a label. The update is ordinary regression, $\theta \leftarrow \theta + \alpha(0 - \theta)$, and θ decays to the truth. A wrong data weighting just means wrong *emphasis* in a fixed loss — **no self-reference, no feedback loop**
+- **Remove leg 3 (go on-policy):** the chain really visits B, so B gets updated toward *its* own target, pulling the inflated $2\theta$ back down toward reality. The visit-proportional weighting makes the downward pull at B provably dominate the upward push at A — **the contraction survives** ([[An Analysis of Temporal-Difference Learning with Function Approximation (1997)|Tsitsiklis & Van Roy]])
+
+One sentence to keep: the triad is a feedback loop — **leak → copy → never-correct** — and each leg contributes exactly one link; cut any link and the loop is broken.
+
+**Living with it — tempering, not solving.** Map [[Deep Q-Network|DQN]]'s fixes onto the loop: the **target network** freezes the θ inside the target for ~10k steps — the target temporarily stops moving (leg 2 weakened, though each sync lets it move again); the **replay buffer** mixes transitions from a million steps of many recent policies — much closer to a stationary visit distribution than "wherever the greedy policy just went" (leg 3 tempered, but still not the on-policy weighting). Neither cuts its link cleanly, which is why DQN can still go unstable and its hyperparameters (sync period, buffer size) are load-bearing. The only clean cut in mainstream use is going **on-policy** — fresh data from the current policy every update, leg 3 gone, at the price of using each sample once. That's the trade [[PPO]] makes — a real part of why the policy-gradient branch, not the value-based one, ended up carrying LLM training.
 
 ## TD control: SARSA and Q-learning
 
