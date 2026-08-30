@@ -58,25 +58,33 @@ Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $\hat{A}^{\pi
 
 What $L$ *measures*: the estimated **gain over the old policy**, not absolute performance. Sanity check at the anchor: $L(\theta_{old}) = \mathbb{E}_{a\sim\pi_{old}}[\hat{A}^{\pi_{old}}] = 0$, because advantages are zero-mean under their own policy ([[Bellman Equation|A = Q − V]]) — the gain of not moving is zero, as it should be. Since $J(\theta_{old})$ is a fixed constant, maximizing the gain is the same as maximizing $J$.
 
-**Step 2 — P1: the slope of $L$ at the start is the true policy gradient.** Slowly, three small motions.
+**Step 2 — the gradient of $L$, derived in full, then evaluated at the anchor.**
 
-*Motion 1 — differentiate the ratio.* In $r(\theta) = \frac{\pi_\theta(a|s)}{\pi_{old}(a|s)}$ the denominator is just a **number** (it has no θ in it), so:
+*Motion 1 — the gradient passes through the expectation.* This is the structural payoff of the whole construction, so notice it: in $J(\theta)$, the θ sits in the *sampling distribution* — you cannot push $\nabla_\theta$ inside (that's why [[Policy Gradient]] needed the log-derivative trick). In $L(\theta)$, the sampling distribution is $\pi_{old}$ — **θ-free** — and all θ-dependence has been moved into the integrand (the ratio). So the gradient slides straight in:
 
-$$\nabla_\theta\, r(\theta) = \frac{\nabla_\theta\, \pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}$$
+$$\nabla_\theta L(\theta) = \nabla_\theta\, \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\, r(\theta)\, \hat{A}^{\pi_{old}}\big] = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\, \nabla_\theta r(\theta)\cdot \hat{A}^{\pi_{old}}\big]$$
 
-*Motion 2 — evaluate at the anchor.* At $\theta = \theta_{old}$ the policies coincide, $\pi_{old} = \pi_{\theta}$, so the denominator can be renamed:
+(the $\hat{A}^{\pi_{old}}$ are frozen constants — they pass through untouched).
 
-$$\nabla_\theta\, r\,\Big|_{\theta_{old}} = \frac{\nabla_\theta\, \pi_\theta}{\pi_\theta}\Bigg|_{\theta_{old}} = \nabla_\theta \log \pi_\theta(a \mid s)\,\Big|_{\theta_{old}}$$
+*Motion 2 — differentiate the ratio.* In $r(\theta) = \frac{\pi_\theta(a|s)}{\pi_{old}(a|s)}$ the denominator is just a **number** (no θ in it), so:
 
-(last equality = the log-derivative identity $\nabla \log f = \nabla f / f$, the same one that powers [[Policy Gradient|REINFORCE]]).
+$$\nabla_\theta\, r(\theta) = \frac{\nabla_\theta\, \pi_\theta(a \mid s)}{\pi_{old}(a \mid s)} \;=\; \underbrace{\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}}_{r(\theta)}\cdot \underbrace{\frac{\nabla_\theta \pi_\theta(a \mid s)}{\pi_\theta(a \mid s)}}_{\nabla_\theta \log \pi_\theta}$$
 
-*Motion 3 — plug into $L$.* Since $L = \mathbb{E}[r\hat{A}^{\pi_{old}}]$ and $\hat{A}^{\pi_{old}}$ doesn't depend on θ:
+(second form: multiply and divide by $\pi_\theta$, then apply the log-derivative identity $\nabla \log f = \nabla f / f$ — REINFORCE's own trick).
 
-$$\nabla_\theta L\,\Big|_{\theta_{old}} = \mathbb{E}_{\,s,a\sim\pi_{old}}\big[\,\hat{A}^{\pi_{old}}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\Big|_{\theta_{old}}$$
+*Result — the general gradient, valid at every θ:*
 
-Compare with the [[Policy Gradient|policy gradient theorem]]: this **is** $\nabla_\theta J\,\big|_{\theta_{old}}$, term for term. Conclusion: **the first SGD step on $L$ is exactly a true policy-gradient step.** $L$ starts out pointing the right way; the only question is how long it *keeps* pointing the right way.
+$$\boxed{\;\nabla_\theta L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\, r(\theta)\; \hat{A}^{\pi_{old}}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\;}$$
 
-**Step 3 — where $L$ goes wrong as θ moves away.** Write both gradients at a *general* θ and compare piece by piece:
+— the ordinary policy gradient, **with an importance weight $r(\theta)$ riding on every sample**. This is literally the gradient your PPO code computes at each inner epoch (before clipping).
+
+*Motion 3 — evaluate at the anchor (P1).* At $\theta = \theta_{old}$: $r \equiv 1$, and the weight disappears:
+
+$$\nabla_\theta L\,\Big|_{\theta_{old}} = \mathbb{E}_{\,s,a\sim\pi_{old}}\big[\,\hat{A}^{\pi_{old}}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\Big|_{\theta_{old}} \;=\; \nabla_\theta J\,\Big|_{\theta_{old}}$$
+
+— term for term the [[Policy Gradient|policy gradient theorem]]. Conclusion: **the first SGD step on $L$ is exactly a true policy-gradient step.** $L$ starts out pointing the right way; the only question is how long it *keeps* pointing the right way as the epochs move θ and the weight $r(\theta)$ drifts from 1.
+
+**Step 3 — where $L$ goes wrong as θ moves away.** Take the boxed general gradient (note $\pi_{old} \cdot r(\theta) = \pi_\theta$, so its action-average is effectively under $\pi_\theta$), set it beside the *true* gradient at that θ, and compare piece by piece:
 
 | piece | in $\nabla L(\theta)$ | in $\nabla J(\theta)$ | match? |
 |---|---|---|---|
