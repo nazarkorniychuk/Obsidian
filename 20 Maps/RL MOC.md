@@ -28,6 +28,7 @@ aliases: [Reinforcement Learning MOC, RL Basics]
 - [[Actor-Critic]] — critic as baseline + bootstrap; δ trains both; A3C's parallelism-instead-of-replay
 - [[Generalized Advantage Estimation]] — the λ-dial applied to advantages; PPO's default estimator
 - **[[PPO]]** — the workhorse: TRPO's trust region as a clipped loss; K epochs per batch; the code-level truths; gateway to RLHF
+- ⚖️ [[Value-Based vs Policy-Based RL]] — the verdict map: which family owns which domain (and the SAC/TD3 hybrid middle)
 
 ## 🗺 Model-based & search
 

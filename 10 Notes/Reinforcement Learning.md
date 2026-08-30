@@ -51,6 +51,8 @@ The loop has two main implementations, split by *where the policy lives*:
 
 **LLM post-training runs on the second row**: the critic TD-evaluates the current policy (EVALUATE), the policy gradient updates it (IMPROVE), and the sampling temperature + entropy term keep exploration alive (ACT) — [[RLHF]], [[GRPO]], [[RLVR]].
 
+Neither body "won" — each owns territory decided by the price of data and the shape of the action space, and continuous control is ruled by a hybrid (SAC/TD3) that is structurally value-based: the full verdict map with evidence is [[Value-Based vs Policy-Based RL]].
+
 ## Reading order
 
 1. [[Markov Decision Process]] — the problem
