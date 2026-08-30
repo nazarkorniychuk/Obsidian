@@ -40,6 +40,10 @@ So the goal is precise: **squeeze several epochs of updates out of each batch (f
 
 $$\boxed{\;L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}^{\pi_{old}}\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\;}$$
 
+whose gradient (derived in Step 2) is the ordinary policy gradient with an **importance weight riding on every sample**:
+
+$$\boxed{\;\nabla_\theta L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\, r(\theta)\; \hat{A}^{\pi_{old}}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\;}$$
+
 **What every symbol is, before anything else.** The batch = trajectories rolled out by $\pi_{old}$. For each $(s, a)$ in it, $\hat{A}^{\pi_{old}}$ is the advantage estimated **entirely under the old policy**: the action was taken by $\pi_{old}$, and it's judged against the old critic $V_\phi$ (trained on $\pi_{old}$'s data), combined over the old trajectory's TD errors by [[Generalized Advantage Estimation|GAE]]. The superscript keeps the ownership visible in the symbol itself: $\hat{A}^{\pi_{old}}(s,a)$ = *"how much this action beat the __old__ policy's expectations."* Crucially, these are **frozen numbers**: computed once when the batch is collected, never touched again during the epochs of optimization. In $L(\theta)$, the *only* thing that depends on θ is the ratio $r(\theta)$; the $\hat{A}^{\pi_{old}}$'s are constants riding along.
 
 We'll establish two facts about $L$: **(P1)** at $\theta_{old}$ its gradient equals the true policy gradient — so climbing it starts out correct; **(P2)** the truth is never worse than $J(\theta_{old}) + L(\theta) - C\cdot\text{KL}(\pi_{old}\|\pi_\theta)$ — so climbing it *inside a KL fence* is guaranteed progress. TRPO enforces the fence exactly (expensive); PPO fakes it with a clip (cheap). Five steps.
@@ -72,7 +76,7 @@ $$\nabla_\theta\, r(\theta) = \frac{\nabla_\theta\, \pi_\theta(a \mid s)}{\pi_{o
 
 (second form: multiply and divide by $\pi_\theta$, then apply the log-derivative identity $\nabla \log f = \nabla f / f$ — REINFORCE's own trick).
 
-*Result — the general gradient, valid at every θ:*
+*Result — the general gradient promised in the destination box, valid at every θ:*
 
 $$\boxed{\;\nabla_\theta L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\, r(\theta)\; \hat{A}^{\pi_{old}}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\;}$$
 
