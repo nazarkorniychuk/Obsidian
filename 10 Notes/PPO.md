@@ -18,7 +18,39 @@ Two compounding pains of the vanilla [[Actor-Critic|actor-critic]] setup:
 
 **2. A too-big step is not just slow to fix — it's self-poisoning.** In supervised learning a bad step is fine: the dataset is fixed, the next steps walk back. In on-policy RL **the policy generates the next dataset.** Step too far → policy degrades → *it collects degraded data* → gradients computed on garbage → further degradation. A death spiral, from one oversized step. Worse, the danger is invisible in parameter space: the gradient is a local approximation, and a small change in θ can be a *huge* change in the action distribution (probabilities are exponentials of logits). Step size in θ is the wrong dial; what needs limiting is the step in *policy space*.
 
-So the goal is precise: **squeeze several epochs of updates out of each batch (fix 1), while guaranteeing the policy never moves far from the one that collected the data (fix 2).**
+So the goal is precise: **squeeze several epochs of updates out of each batch (fix 1), while guaranteeing the policy never moves far from the one that collected the data (fix 2).** Two tools are needed first — one to make old data usable at all, one to measure "far."
+
+## Ingredient 1: importance sampling — how old data becomes usable
+
+**The question:** the batch was collected by $\pi_{old}$; how good would a *candidate* policy be? Tiny concrete case — one state, two actions, advantages measured from the data:
+
+| | $\pi_{old}$ | $\pi_{new}$ | advantage |
+|---|---|---|---|
+| Left | 0.5 | 0.8 | **+1** |
+| Right | 0.5 | 0.2 | **−1** |
+
+What we want (the new policy's expected advantage): $0.8(+1) + 0.2(-1) = \mathbf{+0.6}$. What the batch naively gives: it's ~50/50 Left/Right (that's how it was collected), so a plain average says $0.5(+1) + 0.5(-1) = 0$ — the *old* policy's number, useless for judging the new one.
+
+**The fix: reweight each sample by how much more the new policy "would have" produced it** — the **ratio** $r = \pi_{new}(a)/\pi_{old}(a)$. Left samples: $r = 0.8/0.5 = 1.6$, each counts 1.6×. Right: $r = 0.4$, each counts 0.4×. Reweighted average: $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ — exactly right, from old data alone. Why it's exact, in one line — the sample frequency cancels against the ratio's denominator:
+
+$$\sum_a \underbrace{\pi_{old}(a)}_{\text{how often it's in the data}} \cdot \frac{\pi_{new}(a)}{\pi_{old}(a)} \cdot A(a) \;=\; \sum_a \pi_{new}(a)\, A(a)$$
+
+Everyday version: **survey reweighting** — you polled 50/50 men/women but the population is 80/20, so you weight each respondent by (population share)/(sample share) and the poll speaks for the population. The batch is a poll conducted under the old policy; ratios make it speak for the new one.
+
+**Where it breaks — the reason everything after exists.** Let the new policy love an action the old one almost never tried: $\pi_{new} = 0.5$, $\pi_{old} = 0.01$ → ratio **50**. The whole estimate now hangs on a couple of lucky samples screaming with weight 50 — unbiased in theory, noise in practice. If the old policy took it *zero* times, no weight can conjure the missing information ([[Exploration vs Exploitation|coverage]] again). And the *states* in the batch are the old policy's states regardless — the ratios only fix the actions. **Conclusion: the reweighted estimate is exact in expectation but only *trustworthy* near the old policy.** Which demands a ruler for "near."
+
+## Ingredient 2: KL divergence — the ruler for "how far did the policy move"
+
+$$\text{KL}(p \,\|\, q) = \sum_x p(x)\, \log\frac{p(x)}{q(x)} \qquad \text{— the average log-ratio between two distributions}$$
+
+Zero iff identical; grows with divergence. Numbers, using the policies above: old (0.5, 0.5) vs new (0.8, 0.2) → KL ≈ **0.22 nats**; vs a gentle (0.55, 0.45) → KL ≈ **0.005** — 40× smaller for a 10× smaller shift. KL grows *quadratically* near zero: tiny behavioral changes are nearly free, large ones expensive — the right shape for a step-size ruler.
+
+Two reasons it's *the* ruler here and not distance in θ:
+
+1. **θ-distance measures the wrong thing.** Probabilities are exponentials of logits — a small θ nudge can massively move the action distribution, a large one can barely move it. KL measures what matters: how differently the policies *behave*
+2. **KL is literally the expected log of the importance ratio.** Bounding KL directly bounds how wild the ratios from Ingredient 1 get — it is precisely a cap on how untrustworthy the reweighted estimate may become
+
+One sentence to keep: **importance ratios are how you *spend* old data; KL is how you *measure* whether you've spent too much.**
 
 ## First answer: TRPO — the trust region, done rigorously
 
@@ -33,7 +65,7 @@ In words: **the new policy's total gain = the old policy's advantages, averaged 
 **Step 2 — two substitutions build the surrogate.** Replace both unsamplable pieces with samplable ones:
 
 - *States:* $d^{\pi} \to d^{\pi_{old}}$ — use the states in the batch you already collected. This is an *approximation*, and it is precisely the "the policy generates its own next dataset" problem in formal dress: it ignores how the state distribution will shift when π changes
-- *Actions:* rewrite $\mathbb{E}_{a \sim \pi}[\cdot]$ using old actions via the **importance sampling identity** — for any distributions, $\mathbb{E}_{a \sim \pi}[f(a)] = \mathbb{E}_{a \sim \pi_{old}}\big[\tfrac{\pi(a)}{\pi_{old}(a)} f(a)\big]$ (one line: multiply and divide inside the integral). This one is *exact*, and it introduces the **ratio** $r_t(\theta) = \tfrac{\pi_\theta(a_t \mid s_t)}{\pi_{old}(a_t \mid s_t)}$ — "how much more likely would *I* have been to do what was actually done"
+- *Actions:* rewrite $\mathbb{E}_{a \sim \pi}[\cdot]$ using old actions via **importance sampling — Ingredient 1, applied verbatim**: reweight each sample by $r_t(\theta) = \tfrac{\pi_\theta(a_t \mid s_t)}{\pi_{old}(a_t \mid s_t)}$. This part is *exact* (the survey-reweighting identity)
 
 The result is the **surrogate objective**, computable entirely from the old batch:
 
@@ -81,7 +113,15 @@ Same lesson as [[Fantastic Pretraining Optimizers II - Hyperball (2026)|Hyperbal
 
 ## PPO in LLM training — and why this branch won
 
-[[RLHF]] (the InstructGPT recipe) is this note applied to the token MDP: per-**token** ratios $\pi_\theta(y_t \mid x, y_{<t}) / \pi_{\text{old}}(\cdot)$, [[Generalized Advantage Estimation|GAE]] advantages from a value head, the clip doing exactly its usual job. One notable addition, easy to confuse with the trust region: an extra **KL penalty against the frozen reference model** (the SFT checkpoint). Different object, different purpose — the *clip* keeps $\pi_\theta$ near the recent $\pi_{\text{old}}$ for estimator validity (resets every batch); the *reference-KL* keeps it near the original model to prevent reward hacking and preserve capabilities (never resets). Details → [[RLHF]].
+[[RLHF]] (the InstructGPT recipe) is this note applied to the token MDP: per-**token** ratios $\pi_\theta(y_t \mid x, y_{<t}) / \pi_{\text{old}}(\cdot)$, [[Generalized Advantage Estimation|GAE]] advantages from a value head, the clip doing exactly its usual job. One notable addition, easy to confuse with the trust region: an extra **KL penalty against the frozen reference model** (the SFT checkpoint). All the leashes in one table — each is a KL-flavored constraint, but to a *different anchor* for a *different reason*:
+
+| leash | keeps $\pi_\theta$ close to | purpose | resets? |
+|---|---|---|---|
+| TRPO's constraint $\overline{KL} \le \delta$ | $\pi_{old}$ (last batch's policy) | keep the importance-sampled estimate trustworthy | every batch |
+| PPO's clip on $r \in [1{-}\epsilon, 1{+}\epsilon]$ | $\pi_{old}$ | same goal, enforced per-sample on the ratio itself — the cheap proxy | every batch |
+| RLHF's $\beta\,\text{KL}(\pi_\theta \| \pi_{ref})$ | the frozen SFT reference | prevent [[Reward Model|reward hacking]], preserve the pretrained distribution | **never** |
+
+Details → [[RLHF]].
 
 Why the LLM world runs on this and not on the [[Deep Q-Network|value-based branch]] — the full argument, assembled from the whole cluster: the pretrained LM already **is** a policy (no argmax over 100k tokens needed); on-policy training drops the [[Temporal Difference Learning#The deadly triad|deadly triad's]] third leg outright; the update is a weighted cross-entropy — infrastructure LLM training already has; and sample cost, PG's classic weakness, inverts at scale — generating rollouts is cheap **parallel inference**, while the stability PPO buys is exactly what training a fragile 100B-parameter policy demands.
 
