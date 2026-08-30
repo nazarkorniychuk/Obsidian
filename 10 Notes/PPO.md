@@ -10,9 +10,23 @@ aliases: [Proximal Policy Optimization, PPO-clip, clipped surrogate objective, T
 
 > **Where this sits.** The workhorse of the [[Policy Gradient|policy-gradient]] branch and the algorithm of [[RLHF]]. Its entire content is a safe answer to one question: **how do you take more than one gradient step on the same batch of on-policy data without destroying the policy?**
 
+## The starting point: the vanilla update PPO improves on
+
+Everything in this note modifies one baseline — the basic on-policy loop from [[Policy Gradient]] + [[Actor-Critic]]. State it fully so the changes have something to be changes *to*:
+
+1. **Roll out** the current policy $\pi_{\theta_{old}}$ → a batch of transitions
+2. **Grade it**: compute $\hat{A}^{\pi_{old}}(s,a)$ for every pair in the batch (critic $V_\phi$ + [[Generalized Advantage Estimation|GAE]])
+3. **One gradient step** on the policy:
+
+$$\theta \;\leftarrow\; \theta_{old} + \alpha\; \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,\hat{A}^{\pi_{old}}\, \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\Big|_{\theta_{old}}$$
+
+4. **Throw the batch away.** Return to 1.
+
+Equivalently, step 3 is one SGD step on the loss $L_{PG}(\theta) = \mathbb{E}\big[\log \pi_\theta(a \mid s)\cdot \hat{A}^{\pi_{old}}\big]$ — a *cross-entropy weighted by advantages*: push up the log-prob of actions that beat expectations, push down the rest. This works ([[Asynchronous Methods for Deep RL - A3C (2016)|A3C]] is exactly this plus parallelism). PPO exists because of what's wrong with steps 3–4.
+
 ## The problem: policy gradients waste their data — and big steps kill
 
-Two compounding pains of the vanilla [[Actor-Critic|actor-critic]] setup:
+Two compounding pains of that loop:
 
 **1. One update per sample.** The policy gradient is an expectation under the *current* policy. After a single gradient step, θ has moved — the batch you just collected is now another policy's data, and the estimator is no longer valid. Strictly, you collect → step once → throw everything away. Given that collecting is the expensive part (weeks of simulated time — [[High-Dimensional Continuous Control Using GAE (2015)|the GAE ledger]]), single-use data is brutal.
 
