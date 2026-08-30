@@ -29,7 +29,7 @@ $$\boxed{\;L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A
 together with two provable properties:
 
 - **(P1) Local correctness:** $\nabla_\theta L\,\big|_{\theta_{old}} = \nabla_\theta J\,\big|_{\theta_{old}}$ — climbing $L$ from $\theta_{old}$ starts as a *true* policy-gradient step
-- **(P2) Global safety bound:** $J(\theta) \;\ge\; L(\theta) - C\cdot\max_s \text{KL}(\pi_{old}\,\|\,\pi_\theta)(s)$, with **equality at $\theta_{old}$**
+- **(P2) Global safety bound:** $J(\theta) \;\ge\; J(\theta_{old}) + L(\theta) - C\cdot\max_s \text{KL}(\pi_{old}\,\|\,\pi_\theta)(s)$, with **equality at $\theta_{old}$** (there $L = 0$ and $\text{KL} = 0$)
 
 Their joint payoff: **any θ that raises $L$ while keeping the KL small is guaranteed to raise the true performance $J$** — monotonic improvement from stale data. TRPO = maximize $L$ under a hard KL constraint (exact, second-order); PPO = the same, with the constraint faked by a clip (cheap, first-order). The steps below construct $L$ (Steps 0–1), prove P1 (Step 2), locate the failure modes that make P2 necessary (Steps 3–4), state P2 (Step 5), and build the solver (Step 6).
 
@@ -51,6 +51,8 @@ $$L(\theta) = \mathbb{E}_{\,s, a \sim \pi_{old}}\big[\, r(\theta)\, \hat{A}\,\bi
 
 Note what just happened, because it is the entire trick: **every "sample an action from $\pi_\theta$" got replaced by "reweight $\pi_{old}$'s samples by $r$."**
 
+And be precise about *what $L$ estimates*: not $J(\theta)$ itself, but the **gain** $J(\theta) - J(\theta_{old})$. Check at the anchor: $L(\theta_{old}) = \mathbb{E}_{a \sim \pi_{old}}[\hat{A}^{\pi_{old}}] = 0$ — advantages are **zero-mean under their own policy** ([[Bellman Equation|A = Q − V]]), so the "gain of not moving" is correctly zero. Averaging advantages tallies improvement *over the old baseline*, not absolute return. Since $J(\theta_{old})$ is a constant, climbing the gain and climbing $J$ are the same optimization — which is why $L$ suffices.
+
 **Step 2 — verify wish (a): $L$'s gradient is the true gradient.** At $\theta = \theta_{old}$, $r \equiv 1$, and
 
 $$\nabla_\theta\, r\,\big|_{\theta_{old}} = \frac{\nabla_\theta \pi_\theta}{\pi_{old}}\bigg|_{\theta_{old}} = \nabla_\theta \log \pi_\theta \quad\Longrightarrow\quad \nabla_\theta L\,\big|_{\theta_{old}} = \mathbb{E}\big[\hat{A}\,\nabla_\theta \log \pi_\theta\big] = \nabla_\theta J\,\big|_{\theta_{old}}$$
@@ -61,7 +63,7 @@ So the *first* step on $L$ is exactly the policy-gradient step. The only open qu
 
 $$\nabla L(\theta) = \mathbb{E}_{\,s \sim \pi_{old}\text{'s states}}\,\mathbb{E}_{\,a \sim \pi_\theta}\big[\hat{A}^{\pi_{old}}\,\nabla\log\pi_\theta\big] \qquad \text{vs} \qquad \nabla J(\theta) = \mathbb{E}_{\,s \sim \pi_\theta\text{'s states}}\,\mathbb{E}_{\,a \sim \pi_\theta}\big[A^{\pi_\theta}\,\nabla\log\pi_\theta\big]$$
 
-The ratio has fixed the **action** distribution perfectly — both are $a \sim \pi_\theta$, at *every* θ. What stays stale: the **states** (frozen where $\pi_{old}$ went — Crack 2 below) and the **advantages** (the old policy's judgments, not the new one's). Both mismatches vanish at $\theta_{old}$ and grow with distance. And the argument never needs gradient equality away from the anchor — Step 5's *touching lower bound* does the work instead: if $L - C\cdot\text{KL}$ sits below $J$ everywhere and touches it at $\theta_{old}$, then pushing it up forces $J$ up, regardless of whose gradient points where at the destination.
+The ratio has fixed the **action** distribution perfectly — both are $a \sim \pi_\theta$, at *every* θ. What stays stale: the **states** (frozen where $\pi_{old}$ went — Crack 2 below) and the **advantages** (the old policy's judgments, not the new one's). Both mismatches vanish at $\theta_{old}$ and grow with distance. And the argument never needs gradient equality away from the anchor — Step 5's *touching lower bound* does the work instead: if $J(\theta_{old}) + L - C\cdot\text{KL}$ sits below $J$ everywhere and touches it at $\theta_{old}$, then pushing it up forces $J$ up, regardless of whose gradient points where at the destination.
 
 **Step 3 — the two cracks, and how they grow with distance.**
 
@@ -82,9 +84,9 @@ $$\text{KL}\big(\pi_{old} \,\|\, \pi_\theta\big) = \mathbb{E}_{\,a \sim \pi_{old
 
 **Step 5 — TRPO's theorem: both cracks, priced in KL.** The rigorous analysis (via the performance difference lemma of Kakade & Langford) shows the truth is at worst the surrogate minus a KL-proportional penalty ([[Trust Region Policy Optimization (2015)|Schulman 2015]]):
 
-$$J(\theta) \;\ge\; L(\theta) \;-\; C\,\max_s \text{KL}\big(\pi_{old} \| \pi_\theta\big)(s), \qquad C = \frac{4\,\epsilon\,\gamma}{(1-\gamma)^2}$$
+$$J(\theta) \;\ge\; J(\theta_{old}) \;+\; L(\theta) \;-\; C\,\max_s \text{KL}\big(\pi_{old} \| \pi_\theta\big)(s), \qquad C = \frac{4\,\epsilon\,\gamma}{(1-\gamma)^2}$$
 
-($\epsilon$ = largest advantage magnitude; the $(1{-}\gamma)^{-2}$ is the [[Markov Decision Process|horizon tax]] — Crack 2 compounds over the horizon.) Read the guarantee off the formula: at $\theta = \theta_{old}$ both sides *equal* $J(\theta_{old})$ (cracks are zero) — so any θ that raises the right side must raise $J$ by at least as much. **Monotonic improvement**, the same touching-lower-bound argument as [[Bellman Equation|policy iteration's]] improvement theorem.
+($\epsilon$ = largest advantage magnitude; the $(1{-}\gamma)^{-2}$ is the [[Markov Decision Process|horizon tax]] — Crack 2 compounds over the horizon.) Read the guarantee off the formula: at $\theta = \theta_{old}$ both sides *equal* $J(\theta_{old})$ — since $L(\theta_{old}) = 0$ and $\text{KL} = 0$ — so any θ that raises the right side must raise $J$ by at least as much. **Monotonic improvement**, the same touching-lower-bound argument as [[Bellman Equation|policy iteration's]] improvement theorem.
 
 **Step 6 — the solver, and its price.** The theoretical $C$ forces microscopic steps, so practice swaps penalty → hard constraint with a tunable budget:
 
