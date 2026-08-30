@@ -20,15 +20,31 @@ Take Q-learning, replace the table with a network $Q_\theta$, train on transitio
 
 DQN's contribution is one mechanism per failure mode ([[Human-Level Control Through Deep RL - DQN (2015)|Mnih 2015]]):
 
-## The two stabilizers
+## Stabilizer 1: experience replay
 
-**Experience replay** — store the last **1M transitions** $(s, a, r, s')$ in a ring buffer; train on **random minibatches of 32** drawn from it. What each property buys:
+**The mechanics.** Acting and learning are decoupled into two processes that only meet at a buffer:
 
-- *Random* sampling breaks the temporal correlation (fixes 1) — a minibatch mixes moments from many episodes and many past policies
-- *Reuse* multiplies sample efficiency — each real interaction trains the network many times
-- The cost: the buffer contains data from **old policies**, forcing the algorithm to be off-policy — which Q-learning's max-target tolerates by design (this is *why* DQN had to be built on Q-learning rather than SARSA)
+- *Acting*: every step, the agent acts (ε-greedily), and the resulting transition $(s, a, r, s')$ is appended to a **ring buffer of the last 1M transitions** (oldest overwritten). The transition is *not* trained on directly
+- *Learning*: every 4 acting steps, draw **32 transitions uniformly at random** from the buffer and take one SGD step on them
 
-**Target network** — keep a frozen copy $Q_{\theta^-}$; compute all bootstrap targets with it; sync $\theta^- \leftarrow \theta$ only every **~10k steps**. Between syncs the network chases a *stationary* target (fixes 2) — turning the unstable self-referential regression into a sequence of ordinary supervised problems. In triad terms: replay tempers the off-policy leg (the buffer's mixture of old policies is closer to a stationary distribution than the greedy stream), the target network tempers the bootstrapping leg. Neither *solves* the triad — they weaken two legs enough to stand on.
+**What "random" buys — killing the correlation (problem 1).** Train online and a "batch" is 32 consecutive frames — 32 near-copies of the same game moment, from the same episode, under the same policy: statistically almost one sample. A buffer minibatch instead mixes a serve from twenty minutes ago, a death from an older policy, a brick-bounce from a different level — 32 nearly independent draws. Gradient noise averages the way SGD assumes. A second, subtler benefit: the training distribution now **drifts slowly by construction** — fresh data enters at 1 part in a million per step, so a temporarily bad policy can't flood training with its own poisoned data; the buffer dilutes it 
+- **What reuse buys — sample efficiency.** With one 32-sample gradient step per 4 environment steps and a 1M window, each transition is trained on **~8 times on average** before it ages out ([[Human-Level Control Through Deep RL - DQN (2015)|Mnih 2015]]). Every expensive real interaction pays for itself repeatedly — this ratio (gradient updates per environment step) is now a named tuning knob of every off-policy method
+- **The cost — replay forces off-policy.** A sampled transition may be a million steps old: the action stored in it came from a long-dead policy, *not* from the current one. So the learning rule must be valid on other policies' data. [[Q-Learning|Q-learning's]] max-target is — it evaluates the current greedy policy no matter who collected the data. SARSA's target ($r + \gamma Q(s', a')$ with $a'$ = the action *the behavior policy took next*) is not: the $a'$ in an old transition answers for a policy that no longer exists. **This is why DQN had to be built on Q-learning** — replay and on-policy learning are structurally incompatible
+
+## Stabilizer 2: the target network
+
+**The mechanics.** Two copies of the same architecture:
+
+- the **online network** $Q_\theta$ — updated by every gradient step, used for acting and (in later variants) selection
+- the **target network** $Q_{\theta^-}$ — used *only* to compute bootstrap targets, and otherwise **frozen**: its weights are overwritten with a copy of θ once every **~10k training steps**, and untouched in between
+
+Each minibatch loss is $\big(y - Q_\theta(s,a)\big)^2$ with $y = r + \gamma \max_{a'} Q_{\theta^-}(s', a')$. Because $y$ is computed from $\theta^-$, **it is a constant with respect to θ** — within a 10k-step window, this is honest supervised regression: fixed labels, descend toward them, no self-reference (fixes problem 2).
+
+**What this kills, concretely:** the [[Temporal Difference Learning#The deadly triad|θ/2θ runaway]]. There, every increase of θ raised the target ($1.9\theta$) faster than the chase could close, giving +9% per update forever. With a frozen target the loop is cut: raising θ no longer moves $y$; the regression simply *arrives* at the frozen target and stops. The self-amplification can only re-enter at sync moments — once per 10k steps the target jumps, then holds still again. A clean way to see the whole design: **DQN is approximate value iteration** — each 10k-step window ≈ one application of the Bellman operator, fitted by SGD; the sync is the "$V_{k+1} = TV_k$" step of [[Bellman Equation|value iteration]], done in slow motion.
+
+**The knob and its trade.** The sync period $C$ sets a stability↔speed dial: large $C$ = more stable, but *stale* — a newly discovered reward takes a full window to propagate even one Bellman step backward, so learning lags; small $C$ = information flows faster but the target starts moving again. $C \approx$ 10k is the tuned middle for Atari; continuous-control methods later replaced the hard copy with a **soft update** ($\theta^- \leftarrow \tau\theta + (1-\tau)\theta^-$, τ ≈ 0.005 per step) — same idea, smoothed.
+
+**Triad accounting** ([[Temporal Difference Learning#The deadly triad|the three legs]]): replay tempers leg 3 — the buffer's million-step mixture of recent policies is far closer to a stationary distribution than "wherever the greedy policy just went," though still not the on-policy weighting; the target network tempers leg 2 — the target holds still 99.99% of the time, though every sync lets it move; leg 1 (approximation) is untouched — it's the point. **Neither link of the feedback loop is cut cleanly; both are weakened enough to stand on** — which is why DQN works and also why it can still wobble, with buffer size and sync period as load-bearing hyperparameters.
 
 ## The recipe, concretely
 
