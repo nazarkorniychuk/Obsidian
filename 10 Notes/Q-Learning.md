@@ -55,11 +55,28 @@ That's the mechanism in one sentence: **individual errors are symmetric, but the
 
 ## The fix: decouple selection from evaluation
 
-**Double Q-learning**: maintain two independent tables $Q^A, Q^B$. To build a target, use one to *choose* the best action and the other to *score* it:
+Recall what the **target** is: in every TD update, it's the number you nudge $Q(s,a)$ *toward* — "what one step of reality says this entry should be." Q-learning's target is $r + \gamma \max_{a'} Q(s',a')$, and the whole problem above lives inside that max.
 
-$$\text{target} = r + \gamma\, Q^B\big(s', \arg\max_{a'} Q^A(s', a')\big)$$
+**The diagnosis: the max is secretly doing two jobs with one noisy table.** Unpack $\max_{a'} Q(s',a')$ into its two steps:
 
-If $Q^A$'s argmax picked a lucky error, $Q^B$ — with *independent* noise — scores it honestly; the luck no longer pays. **Results:** the double estimator removes the overestimation (at the price of possible mild *under*estimation), provably converges to the optimal policy, and dramatically outperforms Q-learning where rewards are noisy ([[Double Q-learning (2010)|van Hasselt 2010]]). The same decoupling idea reappears at scale as [[Deep RL with Double Q-Learning - DDQN (2015)|Double DQN]] and as the twin critics of modern continuous-control methods.
+1. **Selection** — *which* action looks best: $a^* = \arg\max_{a'} Q(s',a')$
+2. **Evaluation** — *how good* is that action: read off $Q(s', a^*)$
+
+Standard Q-learning uses the **same table for both**. That's precisely what lets one lucky error pay twice: the entry with the biggest upward error *wins the selection* (step 1), and then *its own inflated number* is used as the evaluation (step 2). The +1.5 machine from the thought experiment gets picked *because* it reads +1.5, and then contributes +1.5 to the target.
+
+**The fix: give each job to a different, independently-noisy table.** Keep two tables $Q^A$ and $Q^B$ — two separate estimates of the same $Q^*$, kept independent by training each on a *different random half of the experience* (each step, a coin flip decides which table gets updated). Independence is the entire point: machine #4 being $Q^A$'s lucky one says *nothing* about what $Q^B$ thinks of machine #4.
+
+One full update step, concretely. You experience $(s, a, r, s')$ and the coin says "update $A$":
+
+1. **$A$ selects:** $a^* = \arg\max_{a'} Q^A(s', a')$ — A picks the action *it* believes is best
+2. **$B$ evaluates:** $\text{target} = r + \gamma\, Q^B(s', a^*)$ — but the *number* comes from B's entry for that action
+3. **A updates toward it:** $Q^A(s,a) \mathrel{+}= \alpha\,[\text{target} - Q^A(s,a)]$
+
+(If the coin says "update $B$", swap every A and B.) Both tables keep improving; when you need to act, use their sum or average.
+
+**Run the slot machines through it.** All ten machines truly worth 0. $Q^A$'s noisy estimates are the list from before, so step 1 picks machine #4 — the one whose *A-error* happens to be +1.5. Now step 2 asks $Q^B$: "what's machine #4 worth?" But $Q^B$'s error on machine #4 is *independent* of A's — as likely $-0.4$ as $+0.6$, and **zero on average**. So the number entering the target is ≈ 0, the truth — not +1.5. A's selection was still fooled (it picked an essentially random machine among equals — harmless here, since they're equal), but *being lucky in A no longer pays, because A's luck doesn't transfer to B*. The systematic upward push is gone.
+
+**Results** ([[Double Q-learning (2010)|van Hasselt 2010]]): the double estimator eliminates the overestimation — trading it for possible mild *under*estimation (if A's pick was genuinely suboptimal, B honestly scores a suboptimal action, landing slightly below the true max); the algorithm **provably converges to the optimal policy** under the same conditions as Watkins; and it dramatically outperforms plain Q-learning wherever rewards are noisy. The decoupling idea became a standard part: [[Deep RL with Double Q-Learning - DDQN (2015)|Double DQN]] reuses it at scale with a cheaper compromise (online network selects, target network evaluates — not fully independent, but independent *enough*), and the twin critics of modern continuous-control methods are the same trick again.
 
 ## Where tabular Q-learning ends
 
