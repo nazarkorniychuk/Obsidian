@@ -8,6 +8,8 @@ aliases: [Bellman equations, value function, value iteration, policy iteration, 
 
 # Bellman Equation
 
+> **The foundations pipeline — who solves what.** [[Markov Decision Process]] poses the problem → **this note solves it *on paper* when the rulebook $(P,R)$ is known — *planning*: no agent, no data, no exploration; everything knowable is already in the tables, we only compute consequences** → [[Temporal Difference Learning]] solves it *from experience* when the rulebook is missing (learning) → [[Exploration vs Exploitation]] supplies that experience.
+
 ## Why value functions exist
 
 The [[Markov Decision Process|MDP]] objective is the expected return $\mathbb{E}[G_t]$ — a sum over the *entire future*. To act well you constantly need to compare futures: "if I land in state $s$, how good is my life from there?" The **value function** compresses that infinite future into one number per state:
@@ -123,7 +125,7 @@ On the running example, starting from the *wrong* policy π₀ = "stay in A": ev
 
 **The third route — linear programming:** $\min_V \sum_s V(s)$ subject to $V \ge TV$. Any table with $V \ge TV$ overestimates $V^*$ everywhere (backing up an overestimate keeps it an overestimate), so the smallest such table *is* $V^*$ — and the max disappears into $|\mathcal{A}|$ linear constraints per state. The dual LP optimizes over **occupancy measures** (expected discounted visit-counts per state–action) — the language offline-RL and constrained-RL theory is written in ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]]).
 
-Both solvers assume $P$ and $R$ are **known** and $|\mathcal{S}|$ is **enumerable**. RL is what remains when neither holds.
+Step back and notice what *kind* of activity this whole section was: **planning, not learning**. Both solvers consume the tables $P$ and $R$; no action was ever taken, no transition experienced, and "exploration" doesn't even parse as a concept — there is nothing left to discover, only consequences to compute. RL proper begins when the tables are gone: [[Temporal Difference Learning]] rebuilds these exact backups from sampled experience, and [[Exploration vs Exploitation]] makes sure the experience covers what matters.
 
 ## From equations to algorithms: sample the backup
 

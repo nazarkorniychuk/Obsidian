@@ -8,6 +8,8 @@ aliases: [TD learning, TD, TD(0), TD(lambda), eligibility traces, bootstrapping]
 
 # Temporal Difference Learning
 
+> **The foundations pipeline — who solves what.** [[Markov Decision Process]] poses the problem → [[Bellman Equation]] solves it *on paper* when the rulebook $(P,R)$ is known (planning) → **this note solves it *from experience* when the rulebook is missing — *learning*: the same Bellman backups, rebuilt from one sampled transition at a time** → [[Exploration vs Exploitation]] supplies the experience — because, as shown below, TD can only update what the policy actually visits.
+
 ## The problem: Bellman machinery without the model
 
 Value iteration and policy iteration ([[Bellman Equation]]) compute values by taking expectations over $P(s' \mid s,a)$ — they need the model. An RL agent doesn't have it. All it has is *experience*: a stream of transitions $(s, a, r, s')$ from acting in the world. TD learning is the answer to: **how do you learn a value function from experience alone?** It is the single idea underneath [[Q-Learning]], SARSA, the critics in [[Actor-Critic]] methods, and [[Generalized Advantage Estimation|GAE]].
@@ -33,7 +35,19 @@ $$\delta_t = r_{t+1} + \gamma V(s_{t+1}) - V(s_t)$$
 
 Tiny numeric run: table says $V(A) = 2$, $V(B) = 6$; γ = 0.5, α = 0.1. You experience $A \xrightarrow{r=1} B$. Target $= 1 + 0.5 \cdot 6 = 4$; error $\delta = 4 - 2 = +2$; update $V(A) \leftarrow 2 + 0.1 \cdot 2 = 2.2$.
 
-Notice what sits *inside* the target: your own estimate $V(s_{t+1})$. Using your current guess as part of the truth you train on is called **bootstrapping** — it's what makes updates available immediately, and it's also the source of every complication in this note. This is [[Bellman Equation|value iteration]] with the expectation replaced by a sample, one visited state at a time.
+Notice what sits *inside* the target: your own estimate $V(s_{t+1})$. Using your current guess as part of the truth you train on is called **bootstrapping** — it's what makes updates available immediately, and it's also the source of every complication in this note.
+
+## Same backup as value iteration — three substitutions
+
+TD is [[Bellman Equation|value iteration]] forced through the keyhole of experience. Side by side, it's the identical Bellman backup with three substitutions, each forced by not having the model:
+
+| | value iteration (planning) | TD / Q-learning (learning) |
+|---|---|---|
+| the expectation over $P(s' \mid s,a)$ | computed exactly from the table | replaced by **one sample** — the $(r, s')$ that actually happened |
+| which entries update | **all states**, every sweep | **only the state you actually visited** |
+| step size | full replacement — no noise to fear | small α, averaging out sampling noise |
+
+The middle row is the one with teeth. VI updates every entry by fiat; TD updates only what behavior touches. Consequence: if the policy never takes action $B$ in state $s$, then $Q(s,B)$ is **never updated** — it just sits at its initialization. The greedy policy is computed from the table *including that garbage entry*, so it keeps avoiding $B$, so $B$ keeps never updating: **the loop can permanently lock in on its own ignorance** — even in a fully deterministic world. This is why every convergence theorem below carries the precondition "all $(s,a)$ visited infinitely often": TD doesn't *provide* exploration, it **demands it as an input** — and [[Exploration vs Exploitation]] is the note about supplying it.
 
 ## The alternative: Monte Carlo — and the trade between them
 

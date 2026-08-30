@@ -18,6 +18,8 @@ Supervised learning gets labeled examples: input → correct output. But how do 
 
 The MDP is the minimal mathematical object that captures all three. Everything in the [[RL MOC|RL cluster]] is an algorithm for some MDP.
 
+> **The foundations pipeline — who solves what.** **This note *poses* the problem** → [[Bellman Equation]] solves it *on paper* when the rulebook $(P, R)$ is known (**planning**) → [[Temporal Difference Learning]] solves it *from experience* when the rulebook is missing (**learning**) → [[Exploration vs Exploitation]] *supplies the experience*: TD only learns about what the policy actually visits, so the visits themselves must be engineered.
+
 ## The formalism, piece by piece
 
 An MDP is a tuple $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$. Concretely, with two running examples:
@@ -42,7 +44,7 @@ Two deliberate choices in that line. It's a **sum** because we care about total 
 
 Why multiply future rewards by $\gamma^k$ at all? Three stacked reasons:
 
-- **Math:** an infinite sum of rewards can diverge; with $\gamma < 1$ the return is bounded, $|G| \le r_{\max}/(1-\gamma)$, and the Bellman operator becomes a **γ-contraction** — the mechanism behind every convergence proof in the cluster ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]])
+- **Math:** an infinite sum of rewards can diverge; with $\gamma < 1$ the return is bounded, $|G| \le r_{\max}/(1-\gamma)$, and the Bellman operator becomes a **γ-contraction** — the mechanism  every convergence proof in the cluster ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]])
 - **Modeling:** $\gamma^t$ decays exponentially, so the agent effectively cares about the next $\approx \tfrac{1}{1-\gamma}$ steps (where the weight has fallen to $1/e$). $\gamma{=}0.9$ → ~10 steps, $0.99$ → ~100 (the Atari default), $0.999$ → ~1000. Choosing γ *is* choosing how far ahead the agent plans:
 
 ![[mdp-discount-horizon.png|460]]
