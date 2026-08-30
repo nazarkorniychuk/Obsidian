@@ -8,7 +8,7 @@ aliases: [DQN, deep Q-learning, experience replay, target network, Rainbow]
 
 # Deep Q-Network
 
-> **Where this sits.** [[Q-Learning]] with the table replaced by a convolutional network reading raw pixels — the algorithm that started the deep-RL era. Its real content is not the network; it's the **two stabilizers** that make the [[Temporal Difference Learning|deadly triad]] survivable in practice.
+> **Where this sits.** [[Q-Learning]] with the table replaced by a convolutional network reading raw pixels — the algorithm that started the deep-RL era. Its real content is not the network; it's the **two stabilizers** that make the [[Temporal Difference Learning#The deadly triad|deadly triad]] survivable in practice.
 
 ## The problem: naive deep Q-learning diverges
 

@@ -77,10 +77,27 @@ Real state spaces don't fit in tables ([[Markov Decision Process#The curse of di
 
 - **Positive:** linear $V_\theta$, trained **on-policy** (states weighted as the policy actually visits them), converges w.p.1, with error at most $\tfrac{1-\lambda\gamma}{1-\gamma} \times$ the best error any linear function could achieve — larger λ provably tightens the bound
 - **Negative:** weight updates by any *other* state distribution and TD can **diverge**; nonlinear approximators can diverge even on-policy
-- Canonical demo: **Baird's counterexample** — 7 states, linearly independent features, exact solution representable, and off-policy Q-learning's values run off to infinity anyway ([[Off-Policy TD with Function Approximation - Precup (2001)|Precup 2001]])
-- **The deadly triad** ([[Reinforcement Learning - An Introduction (1998)|Sutton & Barto]]'s name): (1) function approximation, (2) bootstrapping, (3) off-policy data. Any two are safe; all three can diverge. Why they conspire: approximation makes each update *leak* to other states, bootstrapping makes the target *move* when θ moves, off-policy weighting means errors grow at states the data rarely corrects
-- **Conclusion:** [[Deep Q-Network|DQN]]'s target network (freeze the bootstrap target → less leg 2) and replay-near-on-policy (→ less leg 3) are engineering patches for exactly this
 - Modern quantitative rates: TD ≈ online gradient descent, $O(1/\sqrt{T})$ with averaging, under Markovian sampling ([[A Finite Time Analysis of Temporal Difference Learning (2018)|Bhandari 2018]]) — notable because the TD update is *not* the gradient of any fixed loss
+
+### The deadly triad
+
+The negative results above crystallize into one named pattern ([[Reinforcement Learning - An Introduction (1998)|Sutton & Barto]]'s name). Three ingredients:
+
+1. **Function approximation** — values come from a shared parametric model, so every update *leaks*: changing θ to fix one state moves the estimates of many others
+2. **Bootstrapping** — the training target contains your own estimate, so when θ moves, *the target you're chasing moves with it*
+3. **Off-policy data** — states are weighted by a distribution different from the one the learned policy would visit, so errors can grow at states the data never corrects
+
+**Any two are safe — and each pair's safety is a result you've already met:**
+
+| pair present | why it's safe | who proved it |
+|---|---|---|
+| FA + bootstrapping, on-policy | updates weighted by the chain's own visit distribution → the contraction survives | [[An Analysis of Temporal-Difference Learning with Function Approximation (1997)\|Tsitsiklis & Van Roy]] |
+| FA + off-policy, no bootstrap | Monte Carlo targets are fixed numbers → just weighted supervised regression | ordinary supervised learning |
+| bootstrapping + off-policy, tabular | no leakage — each cell is updated exactly, alone | [[Q-learning - Watkins & Dayan (1992)\|Watkins & Dayan]] |
+
+**All three together can diverge.** The conspiracy runs as a loop: the off-policy weighting overtrains some states → approximation *leaks* the resulting error into neighboring states' estimates → bootstrapping *copies* the leaked error into fresh targets → the data distribution never visits the places where the error could be corrected → repeat, amplifying. Canonical demo: **Baird's counterexample** — 7 states, linearly independent features, the exact solution perfectly *representable*, and off-policy Q-learning's values run off to infinity anyway ([[Off-Policy TD with Function Approximation - Precup (2001)|Precup 2001]]).
+
+**Living with it — the triad is engineered around, never solved:** [[Deep Q-Network|DQN]]'s target network freezes the bootstrap target (weakens leg 2); its replay buffer mixes many recent policies into something closer to a stationary distribution (tempers leg 3); and on-policy methods like [[PPO]] drop leg 3 outright — one reason the policy-gradient branch, not the value-based one, ended up carrying LLM training.
 
 ## TD control: SARSA and Q-learning
 

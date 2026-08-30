@@ -83,7 +83,7 @@ So the search space collapses from all history-dependent randomized rules to the
 Every exact method above stores and sweeps *a table with one entry per state* — dead on arrival for anything described by more than a handful of variables. The consequences ([[Dynamic Programming and Optimal Control - Bertsekas (1995)|Bertsekas 1995]]):
 
 - **All of deep RL is function approximation forced by this single fact:** replace the table with a network $V_\theta(s)$ / $Q_\theta(s,a)$ that *generalizes* — similar states share estimates, so what you learn in one state transfers to the astronomically many you'll never see
-- The price of that generalization is the loss of the tabular convergence guarantees — the [[Temporal Difference Learning|deadly triad]] story
+- The price of that generalization is the loss of the tabular convergence guarantees — the [[Temporal Difference Learning#The deadly triad|deadly triad]] story
 - Same curse, other victims: it's why exact [[Bellman Equation|policy evaluation]]'s $O(|\mathcal{S}|^3)$ solve is theoretical only, and why the POMDP belief simplex above is intractable
 
 - **The map of methods = what you know about $(P, R)$:**

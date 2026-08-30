@@ -80,7 +80,7 @@ One full update step, concretely. You experience $(s, a, r, s')$ and the coin sa
 
 ## Where tabular Q-learning ends
 
-The table *is* the limitation: one cell per $(s,a)$ means no generalization between states and memory linear in $|\mathcal{S}||\mathcal{A}|$ — dead on arrival for pixels ([[Markov Decision Process#The curse of dimensionality|curse of dimensionality]]). Swapping the table for a network is the obvious move, and it walks straight into the [[Temporal Difference Learning|deadly triad]]: Q-learning is *the* maximally off-policy, maximally bootstrapped algorithm, so it's the triad's worst case (Baird's counterexample diverges on exactly this combination). Making that swap survivable took two specific inventions — the subject of [[Deep Q-Network]].
+The table *is* the limitation: one cell per $(s,a)$ means no generalization between states and memory linear in $|\mathcal{S}||\mathcal{A}|$ — dead on arrival for pixels ([[Markov Decision Process#The curse of dimensionality|curse of dimensionality]]). Swapping the table for a network is the obvious move, and it walks straight into the [[Temporal Difference Learning#The deadly triad|deadly triad]]: Q-learning is *the* maximally off-policy, maximally bootstrapped algorithm, so it's the triad's worst case (Baird's counterexample diverges on exactly this combination). Making that swap survivable took two specific inventions — the subject of [[Deep Q-Network]].
 
 ## Related
 

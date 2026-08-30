@@ -28,7 +28,7 @@ The **Deep Q-Network**: Q-learning with a convolutional network reading raw pixe
 
 ## Impact
 
-Demonstrated that the [[Temporal Difference Learning|deadly triad]] can be *engineered around* rather than solved: replay ≈ tempering the off-policy leg, target network ≈ tempering the bootstrapping leg. Every subsequent value-based deep agent is a descendant.
+Demonstrated that the [[Temporal Difference Learning#The deadly triad|deadly triad]] can be *engineered around* rather than solved: replay ≈ tempering the off-policy leg, target network ≈ tempering the bootstrapping leg. Every subsequent value-based deep agent is a descendant.
 
 ## Concepts extracted
 

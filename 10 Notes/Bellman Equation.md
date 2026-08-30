@@ -165,7 +165,7 @@ No model → you can't compute the expectation $\sum_{s'} P(s' \mid s,a)[\cdot]$
 | optimality eq. for $Q^*$ | [[Q-Learning]] (sampled value iteration) |
 | expectation eq. for $Q^\pi$, with $\pi$ improving | SARSA, [[Actor-Critic]] critics |
 
-**Conclusion:** everything above is guaranteed by a contraction that lives in **sup-norm over exact tables**. Swap tables for neural networks and expectations for off-policy samples, and the contraction argument dissolves — convergence becomes conditional, and sometimes fails spectacularly. That boundary (the *deadly triad*) is drawn precisely in [[Temporal Difference Learning]].
+**Conclusion:** everything above is guaranteed by a contraction that lives in **sup-norm over exact tables**. Swap tables for neural networks and expectations for off-policy samples, and the contraction argument dissolves — convergence becomes conditional, and sometimes fails spectacularly. That boundary (the *deadly triad*) is drawn precisely in [[Temporal Difference Learning#The deadly triad|Temporal Difference Learning]].
 
 ## Related
 
