@@ -34,14 +34,22 @@ Read the fine print: *tabular*. One cell per $(s,a)$, updated exactly. The theor
 
 ## The built-in flaw: the max overestimates
 
-The update uses the **maximum of estimates** as a stand-in for the **maximum of true values** — and that substitution is positively biased whenever estimates are noisy ([[Double Q-learning (2010)|van Hasselt 2010]]).
+**First, why the entries are noisy at all.** During training, every $Q(s', a')$ cell is a work in progress: an average over a *few* sampled rewards (the environment is random) plus bootstrap errors not yet ironed out. So at any moment, each entry = true value + some error — up or down, equally likely, honest on average.
 
-Why, concretely: suppose 10 actions all have *true* value 0, but each estimate carries independent noise of ±1. The max over the 10 estimates picks whichever got lucky — its expected value is ≈ +1.5, not 0. **The max doesn't select the best action; it selects the best-looking error.** Formally $\mathbb{E}[\max_a \hat{Q}(a)] \ge \max_a \mathbb{E}[\hat{Q}(a)]$, with equality only when there's no noise. Two aggravating factors:
+**A thought experiment.** Ten slot machines, all secretly identical: every one has true average payout exactly **0**. You estimate each machine from a handful of pulls. Pure luck spreads your ten estimates around the truth:
 
-- **It compounds:** the inflated max goes *into the bootstrap target*, so the overestimate is copied into upstream states, which feed further targets — bias propagates through the [[Bellman Equation|Bellman recursion]] instead of averaging away
-- **It's uneven:** noise is largest exactly where data is scarce, so the bias systematically inflates poorly-explored regions — the opposite of the caution you'd want there
+$$-1.2,\; +0.8,\; -0.3,\; \mathbf{+1.5},\; -0.9,\; +0.2,\; -0.6,\; +1.1,\; -0.4,\; +0.7$$
 
-**Result:** in stochastic environments this makes plain Q-learning perform *very poorly* — not a corner case ([[Double Q-learning (2010)|van Hasselt 2010]]).
+Each individual estimate is fine — unbiased, right on average. Now ask the Q-learning question: *"how good is the best machine?"* — and answer it the Q-learning way, by taking the **max of the estimates**: $+1.5$. The true answer is 0. Where did $+1.5$ come from? **The max scanned the list and picked out the largest *error*.** Rerun the whole experiment with fresh luck and you'll get $+0.9$, $+2.1$, $+1.2$… essentially *always positive* — among ten coin-flip errors, at least one almost surely landed high, and the max hunts it down every time. Averaged over reruns, the max of ten ±1-scale errors sits around **+1.5**, not 0.
+
+That's the mechanism in one sentence: **individual errors are symmetric, but the max converts them into a systematic upward push — it always chases the up-errors and never the down-errors.** More actions, or noisier estimates → bigger push. (The formal version: we want $\max_a$ of the *true* values, but compute the expected max of *estimates*, and $\mathbb{E}[\max_a \hat{Q}(a)] \ge \max_a \mathbb{E}[\hat{Q}(a)]$ always, with equality only in the noise-free case — [[Double Q-learning (2010)|van Hasselt 2010]].)
+
+**Now look back at the update.** The target is $r + \gamma\, {\max_{a'} Q(s',a')}$ — literally the "how good is the best machine?" question, asked of noisy entries, *at every step, in every state*. So targets are systematically too high wherever estimates are still noisy — which during learning is everywhere. Two things stop it from washing out:
+
+- **It compounds instead of averaging away.** In supervised learning, symmetric errors cancel over many samples. Here the inflated max is *written into* $Q(s,a)$ as its new value; later, $s$ appears as someone else's $s'$, and its inflated entry feeds *their* max. The bias is re-selected and re-copied at every step of the [[Bellman Equation|Bellman recursion]] — it travels upstream rather than cancelling
+- **It's biggest exactly where you know least.** Entries with the fewest samples have the largest errors, hence the largest inflation. So the greedy policy is systematically pulled *toward the least-explored actions for phantom reasons* — uncontrolled fake optimism, where honest uncertainty should have counselled caution (contrast UCB in [[Exploration vs Exploitation]], where optimism is *calibrated* to the uncertainty and decays with data; this optimism is accidental and doesn't)
+
+**Result:** in stochastic environments this is not a small correction — plain Q-learning can perform *very poorly*, and the overestimation is the identified cause ([[Double Q-learning (2010)|van Hasselt 2010]]).
 
 ## The fix: decouple selection from evaluation
 
