@@ -71,7 +71,21 @@ So the search space collapses from all history-dependent randomized rules to the
 "Solving" = finding $\pi^*$, the policy maximizing expected return from every state.
 
 - **Result:** for finite MDPs with *known* $P$ and $R$, this is a solved problem — value iteration / policy iteration ([[Bellman Equation]]) find $\pi^*$ in time polynomial in $|\mathcal{S}|, |\mathcal{A}|$ ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]])
-- **The catch — curse of dimensionality:** $|\mathcal{S}|$ grows exponentially with the number of state variables. Backgammon has ~$10^{20}$ states; an image-observed game has more states than atoms. No table over states fits; all of deep RL is **function approximation** (a network estimating values or policies) forced by this single fact ([[Dynamic Programming and Optimal Control - Bertsekas (1995)|Bertsekas 1995]])
+
+### The curse of dimensionality
+
+"Polynomial in $|\mathcal{S}|$" sounds fine until you count what $|\mathcal{S}|$ *is*. A state is usually a **vector of variables** — and the state count multiplies across them: $k$ variables with $v$ values each make $v^k$ states. **The state space grows exponentially in the number of variables describing it.** That's the curse (the name is Bellman's own, coined in 1957):
+
+- 20 binary features → $2^{20} \approx$ 1M states — already an uncomfortable table
+- Backgammon: ~$10^{20}$ board states
+- An Atari screen, 84×84×4 pixels of 256 shades: $256^{28{,}224}$ possible states — more than atoms in the universe, overwhelmingly never visited twice
+
+Every exact method above stores and sweeps *a table with one entry per state* — dead on arrival for anything described by more than a handful of variables. The consequences ([[Dynamic Programming and Optimal Control - Bertsekas (1995)|Bertsekas 1995]]):
+
+- **All of deep RL is function approximation forced by this single fact:** replace the table with a network $V_\theta(s)$ / $Q_\theta(s,a)$ that *generalizes* — similar states share estimates, so what you learn in one state transfers to the astronomically many you'll never see
+- The price of that generalization is the loss of the tabular convergence guarantees — the [[Temporal Difference Learning|deadly triad]] story
+- Same curse, other victims: it's why exact [[Bellman Equation|policy evaluation]]'s $O(|\mathcal{S}|^3)$ solve is theoretical only, and why the POMDP belief simplex above is intractable
+
 - **The map of methods = what you know about $(P, R)$:**
 	- model known → dynamic programming ([[Bellman Equation]])
 	- samples only → model-free RL: learn values ([[Temporal Difference Learning]], [[Q-Learning]]) or the policy directly ([[Policy Gradient]])

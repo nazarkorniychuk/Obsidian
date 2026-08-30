@@ -73,7 +73,7 @@ Waiting for all n-step returns would kill the online property, so the implementa
 
 ## Function approximation: where the guarantees end
 
-Real state spaces don't fit in tables ([[Markov Decision Process|curse of dimensionality]]), so $V_\theta(s)$ becomes a parametric function and the update becomes *semi-gradient*: $\theta \leftarrow \theta + \alpha\,\delta_t\, \nabla_\theta V_\theta(s_t)$ — "semi" because the target also depends on θ but is treated as a constant. [[An Analysis of Temporal-Difference Learning with Function Approximation (1997)|Tsitsiklis & Van Roy 1997]] drew the exact boundary of what survives:
+Real state spaces don't fit in tables ([[Markov Decision Process#The curse of dimensionality|curse of dimensionality]]), so $V_\theta(s)$ becomes a parametric function and the update becomes *semi-gradient*: $\theta \leftarrow \theta + \alpha\,\delta_t\, \nabla_\theta V_\theta(s_t)$ — "semi" because the target also depends on θ but is treated as a constant. [[An Analysis of Temporal-Difference Learning with Function Approximation (1997)|Tsitsiklis & Van Roy 1997]] drew the exact boundary of what survives:
 
 - **Positive:** linear $V_\theta$, trained **on-policy** (states weighted as the policy actually visits them), converges w.p.1, with error at most $\tfrac{1-\lambda\gamma}{1-\gamma} \times$ the best error any linear function could achieve — larger λ provably tightens the bound
 - **Negative:** weight updates by any *other* state distribution and TD can **diverge**; nonlinear approximators can diverge even on-policy
