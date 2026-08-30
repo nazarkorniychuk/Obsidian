@@ -20,57 +20,58 @@ Two compounding pains of the vanilla [[Actor-Critic|actor-critic]] setup:
 
 So the goal is precise: **squeeze several epochs of updates out of each batch (fix 1), while guaranteeing the policy never moves far from the one that collected the data (fix 2).** The rest is one derivation, done move by move.
 
-## The derivation: policy gradient → TRPO, move by move
+## The derivation: from "one step per batch" to a reusable objective
 
-**Start — what we have, and why it's single-use.** The on-policy gradient from [[Policy Gradient]]:
+**Step 0 — restate the goal as a wish for a loss function.** After collecting a batch with $\pi_{old}$, [[Policy Gradient]] tells us how to take exactly *one* step:
 
-$$\nabla_\theta J = \mathbb{E}_{\,s \sim d^{\pi_\theta},\; a \sim \pi_\theta}\big[\,\hat{A}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]$$
+$$\nabla_\theta J\,\big|_{\theta_{old}} = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,\hat{A}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]_{\theta = \theta_{old}}$$
 
-Both expectations are under the *current* $\pi_\theta$ — one gradient step later, the batch no longer qualifies. Goal: an objective $L(\theta)$ computable from a $\pi_{old}$-batch, optimizable for many steps.
+The wish: a function $L(\theta)$, computable from that same fixed batch, such that **(a)** climbing $L$ near $\theta_{old}$ climbs the true performance $J$, and **(b)** we may keep climbing for several epochs. Then RL on this batch becomes ordinary supervised optimization of $L$.
 
-**Move 1 — exact rewrite (performance difference lemma):**
+**Step 1 — build the candidate by reweighting.** For a candidate $\pi_\theta$, ask at each state in the batch: *how good on average are the actions $\pi_\theta$ would pick here, judged by the advantages we measured?* We can't re-act in those states — but we can reweight what $\pi_{old}$ did:
 
-$$J(\theta) - J(\theta_{old}) \;=\; \mathbb{E}_{\,s \sim d^{\pi_\theta}}\,\mathbb{E}_{\,a \sim \pi_\theta}\big[\, A^{\pi_{old}}(s, a)\,\big]$$
+$$\mathbb{E}_{a \sim \pi_\theta}\big[\hat{A}\big] = \sum_a \pi_\theta(a \mid s)\,\hat{A} = \sum_a \pi_{old}(a \mid s)\cdot\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\cdot\hat{A} = \mathbb{E}_{a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}$$
 
-New policy's gain = old policy's advantages under the **new** policy's state visitation $d^{\pi_\theta}$. Exact — but $d^{\pi_\theta}$ belongs to a policy not yet run. Two unsamplable pieces; one move each.
+(Middle equality: multiply and divide by $\pi_{old}$ — nothing else.) Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $\hat{A} = (+1, -1)$: direct answer $0.8 - 0.2 = \mathbf{+0.6}$; reweighted batch $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ ✓. Averaging over the batch's states gives the candidate:
 
-**Move 2 — replace the states (the approximation):**
+$$L(\theta) = \mathbb{E}_{\,s, a \sim \pi_{old}}\big[\, r(\theta)\, \hat{A}\,\big]$$
 
-$$d^{\pi_\theta} \;\longrightarrow\; d^{\pi_{old}}$$
+Note what just happened, because it is the entire trick: **every "sample an action from $\pi_\theta$" got replaced by "reweight $\pi_{old}$'s samples by $r$."**
 
-Use the batch's states as-is. This ignores how visitation shifts with θ; the error is billed in Move 5.
+**Step 2 — verify wish (a): $L$'s gradient is the true gradient.** At $\theta = \theta_{old}$, $r \equiv 1$, and
 
-**Move 3 — replace the action distribution (exact — importance sampling):**
+$$\nabla_\theta\, r\,\big|_{\theta_{old}} = \frac{\nabla_\theta \pi_\theta}{\pi_{old}}\bigg|_{\theta_{old}} = \nabla_\theta \log \pi_\theta \quad\Longrightarrow\quad \nabla_\theta L\,\big|_{\theta_{old}} = \mathbb{E}\big[\hat{A}\,\nabla_\theta \log \pi_\theta\big] = \nabla_\theta J\,\big|_{\theta_{old}}$$
 
-$$\mathbb{E}_{a \sim \pi_\theta}[A] \;=\; \sum_a \pi_\theta(a \mid s)\,A \;=\; \sum_a \pi_{old}(a \mid s)\,\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\,A \;=\; \mathbb{E}_{a \sim \pi_{old}}\big[\,r(\theta)\,A\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}$$
+So the *first* step on $L$ is exactly the policy-gradient step. The only open question is wish (b): **how far may we keep climbing?**
 
-Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $A = (+1, -1)$: target $0.8 - 0.2 = \mathbf{+0.6}$; reweighted batch $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ ✓. Failure mode: $\pi_{old}(a) = 0.01,\ \pi_\theta(a) = 0.5 \Rightarrow r = 50$ — a couple of lucky samples carry the whole estimate: exact in expectation, variance unbounded. The quantity to control: how far ratios stray from 1.
+**Step 3 — the two cracks, and how they grow with distance.**
 
-**Result of Moves 1–3 — the surrogate:**
+- **Crack 1 — ratio variance.** Let $\pi_\theta$ favor an action $\pi_{old}$ rarely tried: $\pi_{old}(a) = 0.01,\ \pi_\theta(a) = 0.5 \Rightarrow r = 50$. The estimate of $L$ now hangs on the few lucky samples of that action, each weighted 50 — correct on average, wild in practice
+- **Crack 2 — state shift, the error with no correction.** The batch's *states* are wherever $\pi_{old}$ went. As $\pi_\theta$ changes, it will visit *different* states — and $L$ keeps grading it on the old ones. Unlike actions, there is no ratio fixing this: $L$ simply doesn't know the new states exist
 
-$$L_{\theta_{old}}(\theta) \;=\; \mathbb{E}_{\,s, a \sim \pi_{old}}\big[\, r(\theta)\, \hat{A}\,\big]$$
+Both cracks vanish at $\pi_\theta = \pi_{old}$ and widen as the policies separate. So wish (b) needs a *ruler* for that separation.
 
-**Move 4 — sanity: $L$ matches $J$ to first order.** At $\theta = \theta_{old}$: $r \equiv 1$, and
+**Step 4 — the ruler: KL divergence.**
 
-$$\nabla_\theta\, r\,\big|_{\theta_{old}} = \frac{\nabla_\theta \pi_\theta}{\pi_{old}}\bigg|_{\theta_{old}} = \nabla_\theta \log \pi_\theta \quad\Longrightarrow\quad \nabla_\theta L\,\big|_{\theta_{old}} = \mathbb{E}\big[\hat{A}\,\nabla_\theta\log \pi_\theta\big] = \nabla_\theta J\,\big|_{\theta_{old}}$$
+$$\text{KL}(p \,\|\, q) = \sum_x p(x)\,\log\frac{p(x)}{q(x)} \qquad\text{— average log-ratio; } 0 \text{ iff } p = q$$
 
-Same value, same gradient — a legitimate local stand-in. Only the *step size* remains in question.
-
-**Move 5 — bill the Move-2 error (the bound).** Distance is measured by KL, $\text{KL}(p \| q) = \sum_x p(x)\log\tfrac{p(x)}{q(x)}$, and the choice is not arbitrary:
+Scale, on the Step-1 policies: $(.5,.5)$ vs $(.8,.2)$ → $0.22$ nats; vs a gentle $(.55,.45)$ → $0.005$ — quadratic near zero, the right shape for a step-size ruler. And it's not just *a* ruler but *the* ruler, because
 
 $$\text{KL}\big(\pi_{old} \,\|\, \pi_\theta\big) = \mathbb{E}_{\,a \sim \pi_{old}}\big[-\log r(\theta)\big]$$
 
-— **KL is the expected negative log of the Move-3 ratio**: bounding it bounds exactly the failure mode above. (Scale: $(.5,.5)$ vs $(.8,.2)$ → 0.22 nats; vs $(.55,.45)$ → 0.005 — quadratic near zero.) TRPO's theorem:
+— **KL is the average log of the Step-1 ratio**: bounding it directly bounds Crack 1. (Measuring in policy space rather than $\|\theta - \theta_{old}\|$ matters: probabilities are exponentials of logits, so θ-distance and behavior-distance are unrelated.)
 
-$$J(\theta) \;\ge\; L_{\theta_{old}}(\theta) \;-\; C\,\max_s \text{KL}\big(\pi_{old} \| \pi_\theta\big)(s), \qquad C = \frac{4\,\epsilon\,\gamma}{(1-\gamma)^2}$$
+**Step 5 — TRPO's theorem: both cracks, priced in KL.** The rigorous analysis (via the performance difference lemma of Kakade & Langford) shows the truth is at worst the surrogate minus a KL-proportional penalty ([[Trust Region Policy Optimization (2015)|Schulman 2015]]):
 
-The RHS is a lower bound that **equals $J$ at $\theta_{old}$** — so any θ raising the RHS raises $J$ by at least as much: **monotonic improvement** (same argument family as [[Bellman Equation|policy iteration's]] improvement theorem; the $(1{-}\gamma)^{-2}$ is the [[Markov Decision Process|horizon tax]] on distribution shift).
+$$J(\theta) \;\ge\; L(\theta) \;-\; C\,\max_s \text{KL}\big(\pi_{old} \| \pi_\theta\big)(s), \qquad C = \frac{4\,\epsilon\,\gamma}{(1-\gamma)^2}$$
 
-**Move 6 — the algorithm.** The theoretical $C$ forces microscopic steps, so practice swaps penalty → hard constraint:
+($\epsilon$ = largest advantage magnitude; the $(1{-}\gamma)^{-2}$ is the [[Markov Decision Process|horizon tax]] — Crack 2 compounds over the horizon.) Read the guarantee off the formula: at $\theta = \theta_{old}$ both sides *equal* $J(\theta_{old})$ (cracks are zero) — so any θ that raises the right side must raise $J$ by at least as much. **Monotonic improvement**, the same touching-lower-bound argument as [[Bellman Equation|policy iteration's]] improvement theorem.
+
+**Step 6 — the solver, and its price.** The theoretical $C$ forces microscopic steps, so practice swaps penalty → hard constraint with a tunable budget:
 
 $$\max_\theta\; \mathbb{E}\big[\,r(\theta)\,\hat{A}\,\big] \quad \text{s.t.} \quad \mathbb{E}_s\big[\text{KL}(\pi_{old} \| \pi_\theta)\big] \le \delta$$
 
-Solved to second order: $\text{KL} \approx \tfrac{1}{2}\Delta\theta^{\top} F\, \Delta\theta$ with $F$ the Fisher information matrix → the natural-gradient step $\Delta\theta \propto F^{-1} \nabla L$ via conjugate gradient, plus a line search re-verifying the true constraint. **Results:** robust gaits + Atari with little tuning ([[Trust Region Policy Optimization (2015)|Schulman 2015]]). **The catch:** second-order machinery — expensive, complex, incompatible with shared policy/value networks. Right objective, wrong solver. PPO keeps Moves 1–5 and replaces only Move 6.
+Enforcing the constraint is the expensive part: expand $\text{KL} \approx \tfrac{1}{2}\Delta\theta^{\top} F\, \Delta\theta$ ($F$ = Fisher information matrix), giving the natural-gradient step $\Delta\theta \propto F^{-1}\nabla L$ via conjugate gradient + a line search re-verifying the true constraint. **Results:** robust gaits + Atari with little tuning. **The catch:** second-order machinery — expensive, complex, incompatible with shared policy/value networks. Right objective, wrong solver. **PPO keeps Steps 0–5 and replaces only Step 6.**
 
 ## PPO: the trust region as a loss function
 
