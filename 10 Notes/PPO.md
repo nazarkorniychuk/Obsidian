@@ -24,9 +24,9 @@ So the goal is precise: **squeeze several epochs of updates out of each batch (f
 
 **Destination, stated first.** From a batch collected by $\pi_{old}$, build the surrogate
 
-$$\boxed{\;L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\;}$$
+$$\boxed{\;L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}^{\pi_{old}}\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\;}$$
 
-**What every symbol is, before anything else.** The batch = trajectories rolled out by $\pi_{old}$. For each $(s, a)$ in it, $\hat{A}$ is the advantage estimated **entirely under the old policy**: the action was taken by $\pi_{old}$, and it's judged against the old critic $V_\phi$ (trained on $\pi_{old}$'s data), combined over the old trajectory's TD errors by [[Generalized Advantage Estimation|GAE]]. So $\hat{A} = \hat{A}^{\pi_{old}}(s,a)$ — *"how much this action beat the __old__ policy's expectations."* Crucially, these are **frozen numbers**: computed once when the batch is collected, never touched again during the epochs of optimization. In $L(\theta)$, the *only* thing that depends on θ is the ratio $r(\theta)$; the $\hat{A}$'s are constants riding along.
+**What every symbol is, before anything else.** The batch = trajectories rolled out by $\pi_{old}$. For each $(s, a)$ in it, $\hat{A}^{\pi_{old}}$ is the advantage estimated **entirely under the old policy**: the action was taken by $\pi_{old}$, and it's judged against the old critic $V_\phi$ (trained on $\pi_{old}$'s data), combined over the old trajectory's TD errors by [[Generalized Advantage Estimation|GAE]]. So $\hat{A}^{\pi_{old}} = \hat{A}^{\pi_{old}}(s,a)$ — *"how much this action beat the __old__ policy's expectations."* Crucially, these are **frozen numbers**: computed once when the batch is collected, never touched again during the epochs of optimization. In $L(\theta)$, the *only* thing that depends on θ is the ratio $r(\theta)$; the $\hat{A}^{\pi_{old}}$'s are constants riding along.
 
 We'll establish two facts about $L$: **(P1)** at $\theta_{old}$ its gradient equals the true policy gradient — so climbing it starts out correct; **(P2)** the truth is never worse than $J(\theta_{old}) + L(\theta) - C\cdot\text{KL}(\pi_{old}\|\pi_\theta)$ — so climbing it *inside a KL fence* is guaranteed progress. TRPO enforces the fence exactly (expensive); PPO fakes it with a clip (cheap). Five steps.
 
@@ -34,15 +34,15 @@ We'll establish two facts about $L$: **(P1)** at $\theta_{old}$ its gradient equ
 
 **Step 1 — what $L$ is: replay the batch, regrade the actions.**
 
-In words first: go through every $(s, a, \hat{A})$ in the batch and multiply its advantage by *how much more (or less) the candidate policy would have chosen that action* — the ratio $r$. Sum up. That's $L$.
+In words first: go through every $(s, a, \hat{A}^{\pi_{old}})$ in the batch and multiply its advantage by *how much more (or less) the candidate policy would have chosen that action* — the ratio $r$. Sum up. That's $L$.
 
 Why that's the right recipe: at any single state, "the average advantage of the actions $\pi_\theta$ would pick" can be rewritten to use only $\pi_{old}$'s samples — multiply and divide by $\pi_{old}$:
 
-$$\mathbb{E}_{a \sim \pi_\theta}\big[\hat{A}\big] \;=\; \sum_a \pi_\theta(a \mid s)\,\hat{A} \;=\; \sum_a \pi_{old}(a \mid s)\cdot\underbrace{\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}}_{r(\theta)}\cdot\hat{A} \;=\; \mathbb{E}_{a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}\,\big]$$
+$$\mathbb{E}_{a \sim \pi_\theta}\big[\hat{A}^{\pi_{old}}\big] \;=\; \sum_a \pi_\theta(a \mid s)\,\hat{A}^{\pi_{old}} \;=\; \sum_a \pi_{old}(a \mid s)\cdot\underbrace{\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}}_{r(\theta)}\cdot\hat{A}^{\pi_{old}} \;=\; \mathbb{E}_{a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}^{\pi_{old}}\,\big]$$
 
-Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $\hat{A} = (+1, -1)$: direct answer $0.8(+1) + 0.2(-1) = \mathbf{+0.6}$; reweighted batch $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ ✓.
+Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $\hat{A}^{\pi_{old}} = (+1, -1)$: direct answer $0.8(+1) + 0.2(-1) = \mathbf{+0.6}$; reweighted batch $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ ✓.
 
-What $L$ *measures*: the estimated **gain over the old policy**, not absolute performance. Sanity check at the anchor: $L(\theta_{old}) = \mathbb{E}_{a\sim\pi_{old}}[\hat{A}] = 0$, because advantages are zero-mean under their own policy ([[Bellman Equation|A = Q − V]]) — the gain of not moving is zero, as it should be. Since $J(\theta_{old})$ is a fixed constant, maximizing the gain is the same as maximizing $J$.
+What $L$ *measures*: the estimated **gain over the old policy**, not absolute performance. Sanity check at the anchor: $L(\theta_{old}) = \mathbb{E}_{a\sim\pi_{old}}[\hat{A}^{\pi_{old}}] = 0$, because advantages are zero-mean under their own policy ([[Bellman Equation|A = Q − V]]) — the gain of not moving is zero, as it should be. Since $J(\theta_{old})$ is a fixed constant, maximizing the gain is the same as maximizing $J$.
 
 **Step 2 — P1: the slope of $L$ at the start is the true policy gradient.** Slowly, three small motions.
 
@@ -56,9 +56,9 @@ $$\nabla_\theta\, r\,\Big|_{\theta_{old}} = \frac{\nabla_\theta\, \pi_\theta}{\p
 
 (last equality = the log-derivative identity $\nabla \log f = \nabla f / f$, the same one that powers [[Policy Gradient|REINFORCE]]).
 
-*Motion 3 — plug into $L$.* Since $L = \mathbb{E}[r\hat{A}]$ and $\hat{A}$ doesn't depend on θ:
+*Motion 3 — plug into $L$.* Since $L = \mathbb{E}[r\hat{A}^{\pi_{old}}]$ and $\hat{A}^{\pi_{old}}$ doesn't depend on θ:
 
-$$\nabla_\theta L\,\Big|_{\theta_{old}} = \mathbb{E}_{\,s,a\sim\pi_{old}}\big[\,\hat{A}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\Big|_{\theta_{old}}$$
+$$\nabla_\theta L\,\Big|_{\theta_{old}} = \mathbb{E}_{\,s,a\sim\pi_{old}}\big[\,\hat{A}^{\pi_{old}}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\Big|_{\theta_{old}}$$
 
 Compare with the [[Policy Gradient|policy gradient theorem]]: this **is** $\nabla_\theta J\,\big|_{\theta_{old}}$, term for term. Conclusion: **the first SGD step on $L$ is exactly a true policy-gradient step.** $L$ starts out pointing the right way; the only question is how long it *keeps* pointing the right way.
 
@@ -87,24 +87,24 @@ $$J(\theta) \;\ge\; J(\theta_{old}) + L(\theta) \;-\; C\,\max_s \text{KL}\big(\p
 
 The improvement argument, in three short sentences: **(i)** the right side never exceeds $J$ — it's a *floor*. **(ii)** At $\theta_{old}$ the floor *touches*: both sides equal $J(\theta_{old})$ (since $L = 0$, KL $= 0$ there). **(iii)** Therefore, if you find any θ where the floor is higher than $J(\theta_{old})$, the truth $J(\theta)$ — sitting on or above the floor — must be higher too. **Guaranteed improvement**, and note it needed *nothing* about $L$'s gradient away from the anchor.
 
-TRPO turns this into an algorithm by swapping the (hugely conservative) penalty for a hard budget: $\max_\theta \mathbb{E}[r\hat{A}]$ s.t. $\overline{\text{KL}} \le \delta$ — solved with second-order machinery (Fisher matrix, conjugate gradient, line search). **Results:** robust gaits + Atari with little tuning. **Price:** complex, expensive, incompatible with shared policy/value networks. **PPO keeps Steps 1–5 and replaces only the solver.**
+TRPO turns this into an algorithm by swapping the (hugely conservative) penalty for a hard budget: $\max_\theta \mathbb{E}[r\hat{A}^{\pi_{old}}]$ s.t. $\overline{\text{KL}} \le \delta$ — solved with second-order machinery (Fisher matrix, conjugate gradient, line search). **Results:** robust gaits + Atari with little tuning. **Price:** complex, expensive, incompatible with shared policy/value networks. **PPO keeps Steps 1–5 and replaces only the solver.**
 
 ## PPO: the trust region as a loss function
 
 One substitution ([[Proximal Policy Optimization (2017)|Schulman 2017]]):
 
-$$\max_\theta\, \mathbb{E}\big[r\hat{A}\big] \;\text{ s.t. }\; \overline{\text{KL}} \le \delta \qquad\longrightarrow\qquad \max_\theta\, \mathbb{E}\Big[\min\big(r\hat{A},\; \text{clip}(r, 1{-}\epsilon, 1{+}\epsilon)\,\hat{A}\big)\Big]$$
+$$\max_\theta\, \mathbb{E}\big[r\hat{A}^{\pi_{old}}\big] \;\text{ s.t. }\; \overline{\text{KL}} \le \delta \qquad\longrightarrow\qquad \max_\theta\, \mathbb{E}\Big[\min\big(r\hat{A}^{\pi_{old}},\; \text{clip}(r, 1{-}\epsilon, 1{+}\epsilon)\,\hat{A}^{\pi_{old}}\big)\Big]$$
 
 The constrained second-order problem becomes an unconstrained first-order loss:
 
-$$L^{CLIP}(\theta) = \mathbb{E}_t\Big[\min\big(\, r_t(\theta)\,\hat{A}_t,\;\; \text{clip}(r_t(\theta),\, 1{-}\epsilon,\, 1{+}\epsilon)\,\hat{A}_t \,\big)\Big], \qquad \epsilon = 0.2$$
+$$L^{CLIP}(\theta) = \mathbb{E}_t\Big[\min\big(\, r_t(\theta)\,\hat{A}^{\pi_{old}}_t,\;\; \text{clip}(r_t(\theta),\, 1{-}\epsilon,\, 1{+}\epsilon)\,\hat{A}^{\pi_{old}}_t \,\big)\Big], \qquad \epsilon = 0.2$$
 
 Walk the logic, separately for the two signs of the advantage:
 
 ![[ppo-clip-objective.png|560]]
 
-- **Good action ($\hat{A} > 0$):** the objective rewards raising the ratio — but only up to $1{+}\epsilon$, where the clip makes it **flat**. Beyond that point the gradient is *zero*: no incentive to push a good action's probability further on this batch. Enthusiasm, capped
-- **Bad action ($\hat{A} < 0$):** by symmetry you'd expect the penalty to flatten below $1{-}\epsilon$ — and for *reducing* the ratio it does. But look at the right side of the plot: if the ratio has (through other updates) *risen* on a bad action, the **min picks the unclipped branch, and the penalty keeps growing**. This is the crucial asymmetry: the min makes the bound **one-sided pessimistic** — clipping only ever *removes reward* for moving too far; it never shields a move that makes things worse. Mistakes always generate corrective gradient; wins stop paying at the boundary
+- **Good action ($\hat{A}^{\pi_{old}} > 0$):** the objective rewards raising the ratio — but only up to $1{+}\epsilon$, where the clip makes it **flat**. Beyond that point the gradient is *zero*: no incentive to push a good action's probability further on this batch. Enthusiasm, capped
+- **Bad action ($\hat{A}^{\pi_{old}} < 0$):** by symmetry you'd expect the penalty to flatten below $1{-}\epsilon$ — and for *reducing* the ratio it does. But look at the right side of the plot: if the ratio has (through other updates) *risen* on a bad action, the **min picks the unclipped branch, and the penalty keeps growing**. This is the crucial asymmetry: the min makes the bound **one-sided pessimistic** — clipping only ever *removes reward* for moving too far; it never shields a move that makes things worse. Mistakes always generate corrective gradient; wins stop paying at the boundary
 
 The payoff: with each sample's influence bounded this way, it becomes safe to run **K epochs (3–10) of minibatch SGD on the same batch** — the sample reuse that vanilla PG forbids, obtained *without* a replay buffer and without leaving the on-policy regime (a batch is reused a few epochs, then discarded — contrast [[Deep Q-Network|DQN]]'s million-step buffer).
 
