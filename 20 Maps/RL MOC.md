@@ -9,12 +9,12 @@ aliases: [Reinforcement Learning MOC, RL Basics]
 
 > Parent: [[Home]] · The map of the vault's reinforcement-learning knowledge. Hub notes in **bold**. *(Foundations written; other sections are planned notes, filled in as we go.)*
 
-## 🧱 Foundations — the formalism
+## 🧱 Foundations — one pipeline, four notes
 
-- **[[Markov Decision Process]]** — states, actions, rewards, transitions, discounting; the problem statement
-- [[Bellman Equation]] — $V^\pi$, $Q^\pi$, optimality, contraction; value/policy iteration (PI = Newton)
-- [[Temporal Difference Learning]] — bootstrapping, TD(λ), the deadly triad, TD-Gammon
-- [[Exploration vs Exploitation]] — regret bounds, UCB, Thompson; ICM → RND → Go-Explore
+- **[[Markov Decision Process]]** — *poses the problem*: states, actions, rewards, discounting, the Markov property
+- [[Bellman Equation]] — *solves it on paper* when the model is known (**planning**): $V$/$Q$, contraction, value/policy iteration
+- [[Temporal Difference Learning]] — *solves it from experience* when the model is missing (**learning**): sampled backups, TD(λ), the deadly triad
+- [[Exploration vs Exploitation]] — *supplies the experience*: TD only learns what the policy visits — regret, UCB/Thompson, ICM → RND → Go-Explore
 
 ## 🎯 Value-based methods
 
