@@ -18,74 +18,67 @@ Two compounding pains of the vanilla [[Actor-Critic|actor-critic]] setup:
 
 **2. A too-big step is not just slow to fix — it's self-poisoning.** In supervised learning a bad step is fine: the dataset is fixed, the next steps walk back. In on-policy RL **the policy generates the next dataset.** Step too far → policy degrades → *it collects degraded data* → gradients computed on garbage → further degradation. A death spiral, from one oversized step. Worse, the danger is invisible in parameter space: the gradient is a local approximation, and a small change in θ can be a *huge* change in the action distribution (probabilities are exponentials of logits). Step size in θ is the wrong dial; what needs limiting is the step in *policy space*.
 
-So the goal is precise: **squeeze several epochs of updates out of each batch (fix 1), while guaranteeing the policy never moves far from the one that collected the data (fix 2).** Two tools are needed first — one to make old data usable at all, one to measure "far."
+So the goal is precise: **squeeze several epochs of updates out of each batch (fix 1), while guaranteeing the policy never moves far from the one that collected the data (fix 2).** The rest is one derivation, done move by move.
 
-## Ingredient 1: importance sampling — how old data becomes usable
+## The derivation: policy gradient → TRPO, move by move
 
-**The question:** the batch was collected by $\pi_{old}$; how good would a *candidate* policy be? Tiny concrete case — one state, two actions, advantages measured from the data:
+**Start — what we have, and why it's single-use.** The on-policy gradient from [[Policy Gradient]]:
 
-| | $\pi_{old}$ | $\pi_{new}$ | advantage |
-|---|---|---|---|
-| Left | 0.5 | 0.8 | **+1** |
-| Right | 0.5 | 0.2 | **−1** |
+$$\nabla_\theta J = \mathbb{E}_{\,s \sim d^{\pi_\theta},\; a \sim \pi_\theta}\big[\,\hat{A}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]$$
 
-What we want (the new policy's expected advantage): $0.8(+1) + 0.2(-1) = \mathbf{+0.6}$. What the batch naively gives: it's ~50/50 Left/Right (that's how it was collected), so a plain average says $0.5(+1) + 0.5(-1) = 0$ — the *old* policy's number, useless for judging the new one.
+Both expectations are under the *current* $\pi_\theta$ — one gradient step later, the batch no longer qualifies. Goal: an objective $L(\theta)$ computable from a $\pi_{old}$-batch, optimizable for many steps.
 
-**The fix: reweight each sample by how much more the new policy "would have" produced it** — the **ratio** $r = \pi_{new}(a)/\pi_{old}(a)$. Left samples: $r = 0.8/0.5 = 1.6$, each counts 1.6×. Right: $r = 0.4$, each counts 0.4×. Reweighted average: $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ — exactly right, from old data alone. Why it's exact, in one line — the sample frequency cancels against the ratio's denominator:
+**Move 1 — exact rewrite (performance difference lemma):**
 
-$$\sum_a \underbrace{\pi_{old}(a)}_{\text{how often it's in the data}} \cdot \frac{\pi_{new}(a)}{\pi_{old}(a)} \cdot A(a) \;=\; \sum_a \pi_{new}(a)\, A(a)$$
+$$J(\theta) - J(\theta_{old}) \;=\; \mathbb{E}_{\,s \sim d^{\pi_\theta}}\,\mathbb{E}_{\,a \sim \pi_\theta}\big[\, A^{\pi_{old}}(s, a)\,\big]$$
 
-Everyday version: **survey reweighting** — you polled 50/50 men/women but the population is 80/20, so you weight each respondent by (population share)/(sample share) and the poll speaks for the population. The batch is a poll conducted under the old policy; ratios make it speak for the new one.
+New policy's gain = old policy's advantages under the **new** policy's state visitation $d^{\pi_\theta}$. Exact — but $d^{\pi_\theta}$ belongs to a policy not yet run. Two unsamplable pieces; one move each.
 
-**Where it breaks — the reason everything after exists.** Let the new policy love an action the old one almost never tried: $\pi_{new} = 0.5$, $\pi_{old} = 0.01$ → ratio **50**. The whole estimate now hangs on a couple of lucky samples screaming with weight 50 — unbiased in theory, noise in practice. If the old policy took it *zero* times, no weight can conjure the missing information ([[Exploration vs Exploitation|coverage]] again). And the *states* in the batch are the old policy's states regardless — the ratios only fix the actions. **Conclusion: the reweighted estimate is exact in expectation but only *trustworthy* near the old policy.** Which demands a ruler for "near."
+**Move 2 — replace the states (the approximation):**
 
-## Ingredient 2: KL divergence — the ruler for "how far did the policy move"
+$$d^{\pi_\theta} \;\longrightarrow\; d^{\pi_{old}}$$
 
-$$\text{KL}(p \,\|\, q) = \sum_x p(x)\, \log\frac{p(x)}{q(x)} \qquad \text{— the average log-ratio between two distributions}$$
+Use the batch's states as-is. This ignores how visitation shifts with θ; the error is billed in Move 5.
 
-Zero iff identical; grows with divergence. Numbers, using the policies above: old (0.5, 0.5) vs new (0.8, 0.2) → KL ≈ **0.22 nats**; vs a gentle (0.55, 0.45) → KL ≈ **0.005** — 40× smaller for a 10× smaller shift. KL grows *quadratically* near zero: tiny behavioral changes are nearly free, large ones expensive — the right shape for a step-size ruler.
+**Move 3 — replace the action distribution (exact — importance sampling):**
 
-Two reasons it's *the* ruler here and not distance in θ:
+$$\mathbb{E}_{a \sim \pi_\theta}[A] \;=\; \sum_a \pi_\theta(a \mid s)\,A \;=\; \sum_a \pi_{old}(a \mid s)\,\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\,A \;=\; \mathbb{E}_{a \sim \pi_{old}}\big[\,r(\theta)\,A\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}$$
 
-1. **θ-distance measures the wrong thing.** Probabilities are exponentials of logits — a small θ nudge can massively move the action distribution, a large one can barely move it. KL measures what matters: how differently the policies *behave*
-2. **KL is literally the expected log of the importance ratio.** Bounding KL directly bounds how wild the ratios from Ingredient 1 get — it is precisely a cap on how untrustworthy the reweighted estimate may become
+Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $A = (+1, -1)$: target $0.8 - 0.2 = \mathbf{+0.6}$; reweighted batch $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ ✓. Failure mode: $\pi_{old}(a) = 0.01,\ \pi_\theta(a) = 0.5 \Rightarrow r = 50$ — a couple of lucky samples carry the whole estimate: exact in expectation, variance unbounded. The quantity to control: how far ratios stray from 1.
 
-One sentence to keep: **importance ratios are how you *spend* old data; KL is how you *measure* whether you've spent too much.**
+**Result of Moves 1–3 — the surrogate:**
 
-## First answer: TRPO — the trust region, done rigorously
+$$L_{\theta_{old}}(\theta) \;=\; \mathbb{E}_{\,s, a \sim \pi_{old}}\big[\, r(\theta)\, \hat{A}\,\big]$$
 
-The theory rests on three stacked results ([[Trust Region Policy Optimization (2015)|Schulman 2015]]); walking through them explains *exactly* where the danger of stale data lives.
+**Move 4 — sanity: $L$ matches $J$ to first order.** At $\theta = \theta_{old}$: $r \equiv 1$, and
 
-**Step 1 — the exact starting point: the performance difference lemma.** How much better is a candidate policy $\pi$ than the current $\pi_{old}$? There's an exact identity (Kakade & Langford):
+$$\nabla_\theta\, r\,\big|_{\theta_{old}} = \frac{\nabla_\theta \pi_\theta}{\pi_{old}}\bigg|_{\theta_{old}} = \nabla_\theta \log \pi_\theta \quad\Longrightarrow\quad \nabla_\theta L\,\big|_{\theta_{old}} = \mathbb{E}\big[\hat{A}\,\nabla_\theta\log \pi_\theta\big] = \nabla_\theta J\,\big|_{\theta_{old}}$$
 
-$$J(\pi) - J(\pi_{old}) \;=\; \mathbb{E}_{\,s \sim d^{\pi},\; a \sim \pi}\big[\, A^{\pi_{old}}(s, a)\,\big]$$
+Same value, same gradient — a legitimate local stand-in. Only the *step size* remains in question.
 
-In words: **the new policy's total gain = the old policy's advantages, averaged over the states and actions the *new* policy visits.** Beautiful — improvement is exactly "how often does the new policy take actions the old policy's own judgment rates above average." One fatal flaw: the expectation runs over $d^{\pi}$, the state distribution of a policy **you haven't run yet**. Unsamplable.
+**Move 5 — bill the Move-2 error (the bound).** Distance is measured by KL, $\text{KL}(p \| q) = \sum_x p(x)\log\tfrac{p(x)}{q(x)}$, and the choice is not arbitrary:
 
-**Step 2 — two substitutions build the surrogate.** Replace both unsamplable pieces with samplable ones:
+$$\text{KL}\big(\pi_{old} \,\|\, \pi_\theta\big) = \mathbb{E}_{\,a \sim \pi_{old}}\big[-\log r(\theta)\big]$$
 
-- *States:* $d^{\pi} \to d^{\pi_{old}}$ — use the states in the batch you already collected. This is an *approximation*, and it is precisely the "the policy generates its own next dataset" problem in formal dress: it ignores how the state distribution will shift when π changes
-- *Actions:* rewrite $\mathbb{E}_{a \sim \pi}[\cdot]$ using old actions via **importance sampling — Ingredient 1, applied verbatim**: reweight each sample by $r_t(\theta) = \tfrac{\pi_\theta(a_t \mid s_t)}{\pi_{old}(a_t \mid s_t)}$. This part is *exact* (the survey-reweighting identity)
+— **KL is the expected negative log of the Move-3 ratio**: bounding it bounds exactly the failure mode above. (Scale: $(.5,.5)$ vs $(.8,.2)$ → 0.22 nats; vs $(.55,.45)$ → 0.005 — quadratic near zero.) TRPO's theorem:
 
-The result is the **surrogate objective**, computable entirely from the old batch:
+$$J(\theta) \;\ge\; L_{\theta_{old}}(\theta) \;-\; C\,\max_s \text{KL}\big(\pi_{old} \| \pi_\theta\big)(s), \qquad C = \frac{4\,\epsilon\,\gamma}{(1-\gamma)^2}$$
 
-$$L_{\pi_{old}}(\theta) = \mathbb{E}_{\,s, a \,\sim\, \pi_{old}}\big[\, r_t(\theta)\, \hat{A}_t\,\big]$$
+The RHS is a lower bound that **equals $J$ at $\theta_{old}$** — so any θ raising the RHS raises $J$ by at least as much: **monotonic improvement** (same argument family as [[Bellman Equation|policy iteration's]] improvement theorem; the $(1{-}\gamma)^{-2}$ is the [[Markov Decision Process|horizon tax]] on distribution shift).
 
-It matches the true $J$ **to first order** at $\theta = \theta_{old}$ (same value, same gradient — differentiate the ratio and check: at $\pi = \pi_{old}$, $r = 1$ and $\nabla r = \nabla \log \pi$, recovering the [[Policy Gradient|policy gradient]]). So near the old policy the surrogate is trustworthy; far away, the state-substitution error takes over.
+**Move 6 — the algorithm.** The theoretical $C$ forces microscopic steps, so practice swaps penalty → hard constraint:
 
-**Step 3 — bound the error, get a guarantee.** TRPO's main theorem quantifies "far away": the truth is sandwiched by the surrogate minus a penalty proportional to how much the policies disagree,
+$$\max_\theta\; \mathbb{E}\big[\,r(\theta)\,\hat{A}\,\big] \quad \text{s.t.} \quad \mathbb{E}_s\big[\text{KL}(\pi_{old} \| \pi_\theta)\big] \le \delta$$
 
-$$J(\pi) \;\ge\; L_{\pi_{old}}(\pi) \;-\; C \cdot \max_s \text{KL}\big(\pi_{old} \,\|\, \pi\big)(s), \qquad C = \frac{4\,\epsilon\,\gamma}{(1-\gamma)^2}$$
-
-(ε = the largest advantage magnitude; note the $\tfrac{1}{(1-\gamma)^2}$ — the [[Markov Decision Process|horizon tax]] again, because state-distribution shift compounds over the horizon.) This turns improvement into a **minorization-maximization** argument: the right side is a *lower bound* that touches $J$ at $\pi_{old}$ — so any π that raises the lower bound must raise the truth by at least as much. **Guaranteed monotonic improvement**, in the same family of arguments as [[Bellman Equation|policy iteration's]] improvement theorem.
-
-**Step 4 — from theorem to algorithm (and where the price appears).** The theoretical penalty $C$ is astronomically conservative (steps would be microscopic), so practice swaps the penalty for a **hard constraint with a fixed budget**: maximize $L$ subject to $\overline{\text{KL}}(\pi_{old} \| \pi_\theta) \le \delta$ (mean KL, not max). Solving *that* is what costs: expand the KL to second order (its Hessian is the **Fisher information matrix** — this is natural gradient territory), solve the resulting quadratic-constrained linear problem by **conjugate gradient**, then **line-search** back until the true constraint and improvement both hold. Second-order machinery, extra passes, and incompatibility with parameter sharing (policy+value in one network) and everyday architecture choices.
-
-**Results:** robust learning of swimming/hopping/walking gaits and Atari **with little hyperparameter tuning** — the reliability that made trust regions standard. **The verdict: right idea, wrong price** — and note what the idea actually was: *measure step size where it matters (KL in policy space, not norms in parameter space), and buy improvement guarantees by staying inside the region where your stale-data estimate is trustworthy.* PPO keeps exactly that idea and throws away the machinery.
+Solved to second order: $\text{KL} \approx \tfrac{1}{2}\Delta\theta^{\top} F\, \Delta\theta$ with $F$ the Fisher information matrix → the natural-gradient step $\Delta\theta \propto F^{-1} \nabla L$ via conjugate gradient, plus a line search re-verifying the true constraint. **Results:** robust gaits + Atari with little tuning ([[Trust Region Policy Optimization (2015)|Schulman 2015]]). **The catch:** second-order machinery — expensive, complex, incompatible with shared policy/value networks. Right objective, wrong solver. PPO keeps Moves 1–5 and replaces only Move 6.
 
 ## PPO: the trust region as a loss function
 
-Keep TRPO's ratio-times-advantage surrogate; replace the constraint with a **clip inside the objective** ([[Proximal Policy Optimization (2017)|Schulman 2017]]):
+One substitution ([[Proximal Policy Optimization (2017)|Schulman 2017]]):
+
+$$\max_\theta\, \mathbb{E}\big[r\hat{A}\big] \;\text{ s.t. }\; \overline{\text{KL}} \le \delta \qquad\longrightarrow\qquad \max_\theta\, \mathbb{E}\Big[\min\big(r\hat{A},\; \text{clip}(r, 1{-}\epsilon, 1{+}\epsilon)\,\hat{A}\big)\Big]$$
+
+The constrained second-order problem becomes an unconstrained first-order loss:
 
 $$L^{CLIP}(\theta) = \mathbb{E}_t\Big[\min\big(\, r_t(\theta)\,\hat{A}_t,\;\; \text{clip}(r_t(\theta),\, 1{-}\epsilon,\, 1{+}\epsilon)\,\hat{A}_t \,\big)\Big], \qquad \epsilon = 0.2$$
 
