@@ -20,79 +20,72 @@ Two compounding pains of the vanilla [[Actor-Critic|actor-critic]] setup:
 
 So the goal is precise: **squeeze several epochs of updates out of each batch (fix 1), while guaranteeing the policy never moves far from the one that collected the data (fix 2).** The rest is one derivation, done move by move.
 
-## The derivation: from "one step per batch" to a reusable objective
+## The derivation: building a reusable objective
 
-**The goal, and the end result — stated first, proved below.** Given a batch collected by $\pi_{old}$, we want an objective that can be optimized safely for *many* gradient steps. The destination is this surrogate:
+**Destination, stated first.** From a batch collected by $\pi_{old}$, build the surrogate
 
 $$\boxed{\;L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\;}$$
 
-together with two provable properties:
+and establish two facts about it: **(P1)** at $\theta_{old}$ its gradient equals the true policy gradient — so climbing it starts out correct; **(P2)** the truth is never worse than $J(\theta_{old}) + L(\theta) - C\cdot\text{KL}(\pi_{old}\|\pi_\theta)$ — so climbing it *inside a KL fence* is guaranteed progress. TRPO enforces the fence exactly (expensive); PPO fakes it with a clip (cheap). Five steps.
 
-- **(P1) Local correctness:** $\nabla_\theta L\,\big|_{\theta_{old}} = \nabla_\theta J\,\big|_{\theta_{old}}$ — climbing $L$ from $\theta_{old}$ starts as a *true* policy-gradient step
-- **(P2) Global safety bound:** $J(\theta) \;\ge\; J(\theta_{old}) + L(\theta) - C\cdot\max_s \text{KL}(\pi_{old}\,\|\,\pi_\theta)(s)$, with **equality at $\theta_{old}$** (there $L = 0$ and $\text{KL} = 0$)
+---
 
-Their joint payoff: **any θ that raises $L$ while keeping the KL small is guaranteed to raise the true performance $J$** — monotonic improvement from stale data. TRPO = maximize $L$ under a hard KL constraint (exact, second-order); PPO = the same, with the constraint faked by a clip (cheap, first-order). The steps below construct $L$ (Steps 0–1), prove P1 (Step 2), locate the failure modes that make P2 necessary (Steps 3–4), state P2 (Step 5), and build the solver (Step 6).
+**Step 1 — what $L$ is: replay the batch, regrade the actions.**
 
-**Step 0 — restate the goal as a wish for a loss function.** After collecting a batch with $\pi_{old}$, [[Policy Gradient]] tells us how to take exactly *one* step:
+In words first: go through every $(s, a, \hat{A})$ in the batch and multiply its advantage by *how much more (or less) the candidate policy would have chosen that action* — the ratio $r$. Sum up. That's $L$.
 
-$$\nabla_\theta J\,\big|_{\theta_{old}} = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,\hat{A}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]_{\theta = \theta_{old}}$$
+Why that's the right recipe: at any single state, "the average advantage of the actions $\pi_\theta$ would pick" can be rewritten to use only $\pi_{old}$'s samples — multiply and divide by $\pi_{old}$:
 
-(Notation: the bar $\big|_{\theta_{old}}$ means "evaluated at the point $\theta = \theta_{old}$" — the gradient is a *function* of θ; the bar plugs in one specific value, yielding concrete numbers. Like $f'(x)\big|_{x=3} = 6$ for $f = x^2$.)
+$$\mathbb{E}_{a \sim \pi_\theta}\big[\hat{A}\big] \;=\; \sum_a \pi_\theta(a \mid s)\,\hat{A} \;=\; \sum_a \pi_{old}(a \mid s)\cdot\underbrace{\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}}_{r(\theta)}\cdot\hat{A} \;=\; \mathbb{E}_{a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}\,\big]$$
 
-The wish: a function $L(\theta)$, computable from that same fixed batch, such that **(a)** climbing $L$ near $\theta_{old}$ climbs the true performance $J$, and **(b)** we may keep climbing for several epochs. Then RL on this batch becomes ordinary supervised optimization of $L$.
+Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $\hat{A} = (+1, -1)$: direct answer $0.8(+1) + 0.2(-1) = \mathbf{+0.6}$; reweighted batch $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ ✓.
 
-**Step 1 — build the candidate by reweighting.** For a candidate $\pi_\theta$, ask at each state in the batch: *how good on average are the actions $\pi_\theta$ would pick here, judged by the advantages we measured?* We can't re-act in those states — but we can reweight what $\pi_{old}$ did:
+What $L$ *measures*: the estimated **gain over the old policy**, not absolute performance. Sanity check at the anchor: $L(\theta_{old}) = \mathbb{E}_{a\sim\pi_{old}}[\hat{A}] = 0$, because advantages are zero-mean under their own policy ([[Bellman Equation|A = Q − V]]) — the gain of not moving is zero, as it should be. Since $J(\theta_{old})$ is a fixed constant, maximizing the gain is the same as maximizing $J$.
 
-$$\mathbb{E}_{a \sim \pi_\theta}\big[\hat{A}\big] = \sum_a \pi_\theta(a \mid s)\,\hat{A} = \sum_a \pi_{old}(a \mid s)\cdot\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\cdot\hat{A} = \mathbb{E}_{a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}$$
+**Step 2 — P1: the slope of $L$ at the start is the true policy gradient.** Slowly, three small motions.
 
-(Middle equality: multiply and divide by $\pi_{old}$ — nothing else.) Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $\hat{A} = (+1, -1)$: direct answer $0.8 - 0.2 = \mathbf{+0.6}$; reweighted batch $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ ✓. Averaging over the batch's states gives the candidate:
+*Motion 1 — differentiate the ratio.* In $r(\theta) = \frac{\pi_\theta(a|s)}{\pi_{old}(a|s)}$ the denominator is just a **number** (it has no θ in it), so:
 
-$$L(\theta) = \mathbb{E}_{\,s, a \sim \pi_{old}}\big[\, r(\theta)\, \hat{A}\,\big]$$
+$$\nabla_\theta\, r(\theta) = \frac{\nabla_\theta\, \pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}$$
 
-Note what just happened, because it is the entire trick: **every "sample an action from $\pi_\theta$" got replaced by "reweight $\pi_{old}$'s samples by $r$."**
+*Motion 2 — evaluate at the anchor.* At $\theta = \theta_{old}$ the policies coincide, $\pi_{old} = \pi_{\theta}$, so the denominator can be renamed:
 
-And be precise about *what $L$ estimates*: not $J(\theta)$ itself, but the **gain** $J(\theta) - J(\theta_{old})$. Check at the anchor: $L(\theta_{old}) = \mathbb{E}_{a \sim \pi_{old}}[\hat{A}^{\pi_{old}}] = 0$ — advantages are **zero-mean under their own policy** ([[Bellman Equation|A = Q − V]]), so the "gain of not moving" is correctly zero. Averaging advantages tallies improvement *over the old baseline*, not absolute return. Since $J(\theta_{old})$ is a constant, climbing the gain and climbing $J$ are the same optimization — which is why $L$ suffices.
+$$\nabla_\theta\, r\,\Big|_{\theta_{old}} = \frac{\nabla_\theta\, \pi_\theta}{\pi_\theta}\Bigg|_{\theta_{old}} = \nabla_\theta \log \pi_\theta(a \mid s)\,\Big|_{\theta_{old}}$$
 
-**Step 2 — verify wish (a): $L$'s gradient is the true gradient.** At $\theta = \theta_{old}$, $r \equiv 1$, and
+(last equality = the log-derivative identity $\nabla \log f = \nabla f / f$, the same one that powers [[Policy Gradient|REINFORCE]]).
 
-$$\nabla_\theta\, r\,\big|_{\theta_{old}} = \frac{\nabla_\theta \pi_\theta}{\pi_{old}}\bigg|_{\theta_{old}} = \nabla_\theta \log \pi_\theta \quad\Longrightarrow\quad \nabla_\theta L\,\big|_{\theta_{old}} = \mathbb{E}\big[\hat{A}\,\nabla_\theta \log \pi_\theta\big] = \nabla_\theta J\,\big|_{\theta_{old}}$$
+*Motion 3 — plug into $L$.* Since $L = \mathbb{E}[r\hat{A}]$ and $\hat{A}$ doesn't depend on θ:
 
-So the *first* step on $L$ is exactly the policy-gradient step. The only open question is wish (b): **how far may we keep climbing?**
+$$\nabla_\theta L\,\Big|_{\theta_{old}} = \mathbb{E}_{\,s,a\sim\pi_{old}}\big[\,\hat{A}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]\Big|_{\theta_{old}}$$
 
-**Why only at $\theta_{old}$ — and why that's enough.** At a general θ the equality is *false*, and computing both sides shows exactly where:
+Compare with the [[Policy Gradient|policy gradient theorem]]: this **is** $\nabla_\theta J\,\big|_{\theta_{old}}$, term for term. Conclusion: **the first SGD step on $L$ is exactly a true policy-gradient step.** $L$ starts out pointing the right way; the only question is how long it *keeps* pointing the right way.
 
-$$\nabla L(\theta) = \mathbb{E}_{\,s \sim \pi_{old}\text{'s states}}\,\mathbb{E}_{\,a \sim \pi_\theta}\big[\hat{A}^{\pi_{old}}\,\nabla\log\pi_\theta\big] \qquad \text{vs} \qquad \nabla J(\theta) = \mathbb{E}_{\,s \sim \pi_\theta\text{'s states}}\,\mathbb{E}_{\,a \sim \pi_\theta}\big[A^{\pi_\theta}\,\nabla\log\pi_\theta\big]$$
+**Step 3 — where $L$ goes wrong as θ moves away.** Write both gradients at a *general* θ and compare piece by piece:
 
-The ratio has fixed the **action** distribution perfectly — both are $a \sim \pi_\theta$, at *every* θ. What stays stale: the **states** (frozen where $\pi_{old}$ went — Crack 2 below) and the **advantages** (the old policy's judgments, not the new one's). Both mismatches vanish at $\theta_{old}$ and grow with distance. And the argument never needs gradient equality away from the anchor — Step 5's *touching lower bound* does the work instead: if $J(\theta_{old}) + L - C\cdot\text{KL}$ sits below $J$ everywhere and touches it at $\theta_{old}$, then pushing it up forces $J$ up, regardless of whose gradient points where at the destination.
+| piece | in $\nabla L(\theta)$ | in $\nabla J(\theta)$ | match? |
+|---|---|---|---|
+| actions | $a \sim \pi_\theta$ (the ratio's doing) | $a \sim \pi_\theta$ | ✅ at every θ |
+| states | the batch's states ($\pi_{old}$'s) | the *new* policy's states | ❌ |
+| advantages | $\hat{A}^{\pi_{old}}$ — old judgments | $A^{\pi_\theta}$ | ❌ |
 
-**Step 3 — the two cracks, and how they grow with distance.**
+So the equality of Step 2 is **true only at the anchor** — away from it, two cracks open and widen with distance:
 
-- **Crack 1 — ratio variance.** Let $\pi_\theta$ favor an action $\pi_{old}$ rarely tried: $\pi_{old}(a) = 0.01,\ \pi_\theta(a) = 0.5 \Rightarrow r = 50$. The estimate of $L$ now hangs on the few lucky samples of that action, each weighted 50 — correct on average, wild in practice
-- **Crack 2 — state shift, the error with no correction.** The batch's *states* are wherever $\pi_{old}$ went. As $\pi_\theta$ changes, it will visit *different* states — and $L$ keeps grading it on the old ones. Unlike actions, there is no ratio fixing this: $L$ simply doesn't know the new states exist
+- **Crack 1 — ratio variance:** $\pi_{old}(a) = 0.01,\ \pi_\theta(a) = 0.5 \Rightarrow r = 50$: a few lucky samples, weighted 50×, carry the whole estimate
+- **Crack 2 — frozen states:** the new policy will visit places the batch never saw, and $L$ knows nothing about them; no ratio can fix this one
 
-Both cracks vanish at $\pi_\theta = \pi_{old}$ and widen as the policies separate. So wish (b) needs a *ruler* for that separation.
+**Step 4 — measure "distance" the right way: KL.**
 
-**Step 4 — the ruler: KL divergence.**
+$$\text{KL}(p \,\|\, q) = \sum_x p(x)\,\log\frac{p(x)}{q(x)} \qquad — \;0 \text{ iff } p = q;\; \text{grows with divergence}$$
 
-$$\text{KL}(p \,\|\, q) = \sum_x p(x)\,\log\frac{p(x)}{q(x)} \qquad\text{— average log-ratio; } 0 \text{ iff } p = q$$
+Numbers: $(.5,.5)$ vs $(.8,.2)$ → 0.22 nats; vs $(.55,.45)$ → 0.005. Why KL and not $\|\theta - \theta_{old}\|$: behavior, not parameters, is what drifts ([[Attention Mechanism|softmax]] of logits — tiny θ moves can be huge distribution moves). And KL is tailor-made for Crack 1: $\text{KL}(\pi_{old}\|\pi_\theta) = \mathbb{E}_{\pi_{old}}[-\log r]$ — **it is the average log of the very ratio that misbehaves**, so capping KL caps the ratios.
 
-Scale, on the Step-1 policies: $(.5,.5)$ vs $(.8,.2)$ → $0.22$ nats; vs a gentle $(.55,.45)$ → $0.005$ — quadratic near zero, the right shape for a step-size ruler. And it's not just *a* ruler but *the* ruler, because
+**Step 5 — P2: the guarantee, and TRPO.** The rigorous analysis (Kakade & Langford's performance difference lemma + [[Trust Region Policy Optimization (2015)|Schulman 2015]]) prices both cracks in KL:
 
-$$\text{KL}\big(\pi_{old} \,\|\, \pi_\theta\big) = \mathbb{E}_{\,a \sim \pi_{old}}\big[-\log r(\theta)\big]$$
+$$J(\theta) \;\ge\; J(\theta_{old}) + L(\theta) \;-\; C\,\max_s \text{KL}\big(\pi_{old} \| \pi_\theta\big)(s), \qquad C = \tfrac{4\epsilon\gamma}{(1-\gamma)^2}$$
 
-— **KL is the average log of the Step-1 ratio**: bounding it directly bounds Crack 1. (Measuring in policy space rather than $\|\theta - \theta_{old}\|$ matters: probabilities are exponentials of logits, so θ-distance and behavior-distance are unrelated.)
+The improvement argument, in three short sentences: **(i)** the right side never exceeds $J$ — it's a *floor*. **(ii)** At $\theta_{old}$ the floor *touches*: both sides equal $J(\theta_{old})$ (since $L = 0$, KL $= 0$ there). **(iii)** Therefore, if you find any θ where the floor is higher than $J(\theta_{old})$, the truth $J(\theta)$ — sitting on or above the floor — must be higher too. **Guaranteed improvement**, and note it needed *nothing* about $L$'s gradient away from the anchor.
 
-**Step 5 — TRPO's theorem: both cracks, priced in KL.** The rigorous analysis (via the performance difference lemma of Kakade & Langford) shows the truth is at worst the surrogate minus a KL-proportional penalty ([[Trust Region Policy Optimization (2015)|Schulman 2015]]):
-
-$$J(\theta) \;\ge\; J(\theta_{old}) \;+\; L(\theta) \;-\; C\,\max_s \text{KL}\big(\pi_{old} \| \pi_\theta\big)(s), \qquad C = \frac{4\,\epsilon\,\gamma}{(1-\gamma)^2}$$
-
-($\epsilon$ = largest advantage magnitude; the $(1{-}\gamma)^{-2}$ is the [[Markov Decision Process|horizon tax]] — Crack 2 compounds over the horizon.) Read the guarantee off the formula: at $\theta = \theta_{old}$ both sides *equal* $J(\theta_{old})$ — since $L(\theta_{old}) = 0$ and $\text{KL} = 0$ — so any θ that raises the right side must raise $J$ by at least as much. **Monotonic improvement**, the same touching-lower-bound argument as [[Bellman Equation|policy iteration's]] improvement theorem.
-
-**Step 6 — the solver, and its price.** The theoretical $C$ forces microscopic steps, so practice swaps penalty → hard constraint with a tunable budget:
-
-$$\max_\theta\; \mathbb{E}\big[\,r(\theta)\,\hat{A}\,\big] \quad \text{s.t.} \quad \mathbb{E}_s\big[\text{KL}(\pi_{old} \| \pi_\theta)\big] \le \delta$$
-
-Enforcing the constraint is the expensive part: expand $\text{KL} \approx \tfrac{1}{2}\Delta\theta^{\top} F\, \Delta\theta$ ($F$ = Fisher information matrix), giving the natural-gradient step $\Delta\theta \propto F^{-1}\nabla L$ via conjugate gradient + a line search re-verifying the true constraint. **Results:** robust gaits + Atari with little tuning. **The catch:** second-order machinery — expensive, complex, incompatible with shared policy/value networks. Right objective, wrong solver. **PPO keeps Steps 0–5 and replaces only Step 6.**
+TRPO turns this into an algorithm by swapping the (hugely conservative) penalty for a hard budget: $\max_\theta \mathbb{E}[r\hat{A}]$ s.t. $\overline{\text{KL}} \le \delta$ — solved with second-order machinery (Fisher matrix, conjugate gradient, line search). **Results:** robust gaits + Atari with little tuning. **Price:** complex, expensive, incompatible with shared policy/value networks. **PPO keeps Steps 1–5 and replaces only the solver.**
 
 ## PPO: the trust region as a loss function
 
