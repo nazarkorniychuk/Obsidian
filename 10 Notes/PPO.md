@@ -22,12 +22,34 @@ So the goal is precise: **squeeze several epochs of updates out of each batch (f
 
 ## First answer: TRPO — the trust region, done rigorously
 
-Two ingredients ([[Trust Region Policy Optimization (2015)|Schulman 2015]]):
+The theory rests on three stacked results ([[Trust Region Policy Optimization (2015)|Schulman 2015]]); walking through them explains *exactly* where the danger of stale data lives.
 
-- **Importance sampling makes stale data legal.** You can estimate the *new* policy's performance on the *old* policy's data by reweighting each sample with the probability **ratio** $r_t(\theta) = \tfrac{\pi_\theta(a_t \mid s_t)}{\pi_{\text{old}}(a_t \mid s_t)}$ — "how much more (or less) likely would *I* have been to do what the old policy did." The surrogate objective $\mathbb{E}[\, r_t(\theta)\, \hat{A}_t\,]$ is valid — *but only near $\pi_{\text{old}}$*; the reweighting degrades as the policies diverge
-- **So constrain the divergence:** maximize the surrogate subject to $\overline{\text{KL}}(\pi_{\text{old}} \| \pi_\theta) \le \delta$ — a **trust region** in policy space, not parameter space. The theory: this bounds the surrogate's error, yielding **guaranteed monotonic improvement**
+**Step 1 — the exact starting point: the performance difference lemma.** How much better is a candidate policy $\pi$ than the current $\pi_{old}$? There's an exact identity (Kakade & Langford):
 
-**Results:** robust learning of swimming/hopping/walking gaits and Atari **with little hyperparameter tuning** — the reliability that made trust regions standard. **The catch:** enforcing the KL constraint needs second-order machinery (conjugate gradient + line search) — complex, expensive, and incompatible with parameter sharing (policy+value in one network) and everyday architecture choices. Right idea, wrong price.
+$$J(\pi) - J(\pi_{old}) \;=\; \mathbb{E}_{\,s \sim d^{\pi},\; a \sim \pi}\big[\, A^{\pi_{old}}(s, a)\,\big]$$
+
+In words: **the new policy's total gain = the old policy's advantages, averaged over the states and actions the *new* policy visits.** Beautiful — improvement is exactly "how often does the new policy take actions the old policy's own judgment rates above average." One fatal flaw: the expectation runs over $d^{\pi}$, the state distribution of a policy **you haven't run yet**. Unsamplable.
+
+**Step 2 — two substitutions build the surrogate.** Replace both unsamplable pieces with samplable ones:
+
+- *States:* $d^{\pi} \to d^{\pi_{old}}$ — use the states in the batch you already collected. This is an *approximation*, and it is precisely the "the policy generates its own next dataset" problem in formal dress: it ignores how the state distribution will shift when π changes
+- *Actions:* rewrite $\mathbb{E}_{a \sim \pi}[\cdot]$ using old actions via the **importance sampling identity** — for any distributions, $\mathbb{E}_{a \sim \pi}[f(a)] = \mathbb{E}_{a \sim \pi_{old}}\big[\tfrac{\pi(a)}{\pi_{old}(a)} f(a)\big]$ (one line: multiply and divide inside the integral). This one is *exact*, and it introduces the **ratio** $r_t(\theta) = \tfrac{\pi_\theta(a_t \mid s_t)}{\pi_{old}(a_t \mid s_t)}$ — "how much more likely would *I* have been to do what was actually done"
+
+The result is the **surrogate objective**, computable entirely from the old batch:
+
+$$L_{\pi_{old}}(\theta) = \mathbb{E}_{\,s, a \,\sim\, \pi_{old}}\big[\, r_t(\theta)\, \hat{A}_t\,\big]$$
+
+It matches the true $J$ **to first order** at $\theta = \theta_{old}$ (same value, same gradient — differentiate the ratio and check: at $\pi = \pi_{old}$, $r = 1$ and $\nabla r = \nabla \log \pi$, recovering the [[Policy Gradient|policy gradient]]). So near the old policy the surrogate is trustworthy; far away, the state-substitution error takes over.
+
+**Step 3 — bound the error, get a guarantee.** TRPO's main theorem quantifies "far away": the truth is sandwiched by the surrogate minus a penalty proportional to how much the policies disagree,
+
+$$J(\pi) \;\ge\; L_{\pi_{old}}(\pi) \;-\; C \cdot \max_s \text{KL}\big(\pi_{old} \,\|\, \pi\big)(s), \qquad C = \frac{4\,\epsilon\,\gamma}{(1-\gamma)^2}$$
+
+(ε = the largest advantage magnitude; note the $\tfrac{1}{(1-\gamma)^2}$ — the [[Markov Decision Process|horizon tax]] again, because state-distribution shift compounds over the horizon.) This turns improvement into a **minorization-maximization** argument: the right side is a *lower bound* that touches $J$ at $\pi_{old}$ — so any π that raises the lower bound must raise the truth by at least as much. **Guaranteed monotonic improvement**, in the same family of arguments as [[Bellman Equation|policy iteration's]] improvement theorem.
+
+**Step 4 — from theorem to algorithm (and where the price appears).** The theoretical penalty $C$ is astronomically conservative (steps would be microscopic), so practice swaps the penalty for a **hard constraint with a fixed budget**: maximize $L$ subject to $\overline{\text{KL}}(\pi_{old} \| \pi_\theta) \le \delta$ (mean KL, not max). Solving *that* is what costs: expand the KL to second order (its Hessian is the **Fisher information matrix** — this is natural gradient territory), solve the resulting quadratic-constrained linear problem by **conjugate gradient**, then **line-search** back until the true constraint and improvement both hold. Second-order machinery, extra passes, and incompatibility with parameter sharing (policy+value in one network) and everyday architecture choices.
+
+**Results:** robust learning of swimming/hopping/walking gaits and Atari **with little hyperparameter tuning** — the reliability that made trust regions standard. **The verdict: right idea, wrong price** — and note what the idea actually was: *measure step size where it matters (KL in policy space, not norms in parameter space), and buy improvement guarantees by staying inside the region where your stale-data estimate is trustworthy.* PPO keeps exactly that idea and throws away the machinery.
 
 ## PPO: the trust region as a loss function
 
