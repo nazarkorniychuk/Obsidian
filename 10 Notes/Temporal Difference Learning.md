@@ -84,10 +84,10 @@ Real state spaces don't fit in tables ([[Markov Decision Process|curse of dimens
 
 ## TD control: SARSA and Q-learning
 
-To *act*, learn $Q$ instead of $V$ (argmax needs no model — the [[Bellman Equation|Q-vs-V argument]]). One experienced step $(s, a, r, s', a')$ gives two different sampled backups:
+To *act*, learn $Q$ instead of $V$ (argmax needs no model — the [[Bellman Equation|Q-vs-V argument]]). Vocabulary first: in control there are always **two policies** — the **behavior policy** that actually acts (learned policy + exploration noise, e.g. ε-greedy) and the **target policy** you want values for (usually the clean greedy one). One experienced step $(s, a, r, s', a')$ gives two different sampled backups, differing in *which of the two* the target evaluates:
 
-- **SARSA** (on-policy): $\delta = r + \gamma\, Q(s', a') - Q(s,a)$ with $a'$ = the action *actually taken next*. Learns the value of the policy being followed, exploration noise included
-- **[[Q-Learning]]** (off-policy): $\delta = r + \gamma \max_{a'} Q(s', a') - Q(s,a)$. Learns the value of the *greedy* policy while behaving any exploratory way whatsoever — sampled value iteration. **Result:** converges to $Q^*$ w.p.1 if every $(s,a)$ is visited infinitely often and steps satisfy Robbins–Monro: $\sum \alpha = \infty$ (big enough to get anywhere) but $\sum \alpha^2 < \infty$ (shrinking so sampling noise averages out) ([[Q-learning - Watkins & Dayan (1992)|Watkins & Dayan 1992]])
+- **SARSA** (**on-policy** — target = behavior): $\delta = r + \gamma\, Q(s', a') - Q(s,a)$ with $a'$ = the action *actually taken next*. Learns the value of the messy policy being followed, exploration noise included
+- **[[Q-Learning]]** (**off-policy** — target ≠ behavior): $\delta = r + \gamma \max_{a'} Q(s', a') - Q(s,a)$. The $\max$ makes the target refer to the *greedy* policy no matter how exploratory the behavior was — sampled value iteration on data someone else collected. **Result:** converges to $Q^*$ w.p.1 if every $(s,a)$ is visited infinitely often and steps satisfy Robbins–Monro: $\sum \alpha = \infty$ (big enough to get anywhere) but $\sum \alpha^2 < \infty$ (shrinking so sampling noise averages out) ([[Q-learning - Watkins & Dayan (1992)|Watkins & Dayan 1992]])
 
 ## The result that made TD famous
 

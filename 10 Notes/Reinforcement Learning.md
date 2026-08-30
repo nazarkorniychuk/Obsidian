@@ -19,13 +19,15 @@ $$\Large \text{ACT} \;\longrightarrow\; \text{EVALUATE} \;\longrightarrow\; \tex
 | stage | the question it answers | owned by | key objects |
 |---|---|---|---|
 | **the arena** | what problem are we solving at all? | [[Markov Decision Process]] | $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$, return, policy |
-| **ACT** | which actions generate the data — and how much do we deviate *on purpose*? | [[Exploration vs Exploitation]] | ε-greedy, softmax/temperature, UCB, novelty bonuses |
+| **ACT** | which actions generate the data — executed by the **behavior policy** = learned policy + deliberate corruption | [[Exploration vs Exploitation]] | ε-greedy, softmax/temperature, UCB, novelty bonuses |
 | **EVALUATE** | how good is current behavior? | [[Temporal Difference Learning]] — from experience; [[Bellman Equation]] — on paper, when the model is known | $V^\pi$, $Q^\pi$, TD error $\delta$ |
 | **IMPROVE** | how do value estimates become a better policy? | [[Bellman Equation]]'s greedy map (value-based) · [[Policy Gradient]] (policy-based) | $\arg\max_a Q$, $\nabla_\theta J$ |
 
 Three placements that are easy to get wrong (and that the notes argue in full):
 
+- **Two policies coexist at every moment — and the one that acts is *not* the one being learned.** The **learned policy** (also called the *target policy*) is the clean object the loop is improving: greedy($Q$), or the network $\pi_\theta$. The **behavior policy** is what actually touches the environment: the learned policy *with exploration corruption applied on top* — ε of random actions, a sampling temperature, bonus-chasing. ACT always executes the behavior policy; IMPROVE always updates the learned one. Keep them mentally separate: when training ends, the corruption is stripped off and only the learned policy ships
 - **Exploration belongs to ACT, not IMPROVE.** Improvement is *pure exploitation* of the current estimates (act greedier / follow the gradient). Exploration is the deliberate corruption applied when *acting*, so that the next round of evaluation has data covering enough of the world — it's the tax that keeps improvement possible, not the improvement itself
+- **The behavior/learned split is where "on-policy vs off-policy" comes from.** EVALUATE has a choice of *which* of the two policies to grade with the collected data: grade the behavior policy itself (noise included) → **on-policy** (SARSA, and PPO-style methods); grade the clean learned policy using data the messy one collected → **off-policy** (Q-learning — its $\max$ target refers to greedy($Q$) no matter how the data was gathered). Off-policy is more flexible and more dangerous — it's the third leg of the deadly triad ([[Temporal Difference Learning]])
 - **TD computes *any* policy's values, not just optimal ones.** The target decides what you get: $r + \gamma V(s')$ under π → $V^\pi$ (pure evaluation); $r + \gamma\max_{a'}Q(s',a')$ → $Q^*$ directly (Q-learning collapses IMPROVE into the target). Optimality is a property of the target, not of the TD idea
 - **The loop needn't run in phases.** Tabular [[Q-Learning]] does all three stages *every timestep*: act ε-greedily, TD-update one entry, and — since the policy is *defined* as greedy(Q) — improvement happens the instant the entry changes
 
