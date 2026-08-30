@@ -110,6 +110,34 @@ $$\|TV - TU\|_\infty \le \gamma\,\|V - U\|_\infty$$
 - **Speed:** the table shows the general law, $\|V_k - V^*\|_\infty \le \gamma^k \|V_0 - V^*\|_\infty$. Precision $\epsilon$ needs $k \approx \tfrac{\ln(1/\epsilon)}{1-\gamma}$ sweeps. Here γ = 0.5 → error halves per sweep; at γ = 0.99 each sweep removes only 1% of the error (~460 sweeps for 1% precision) — the $\tfrac{1}{1-\gamma}$ horizon tax from the [[Markov Decision Process|MDP note]], now as compute
 - **Robustness:** if you stop early / approximate, acting greedily on a $V$ that's off by $\epsilon$ costs at most $\tfrac{2\gamma\epsilon}{1-\gamma}$ in policy quality ([[Dynamic Programming and Optimal Control - Bertsekas (1995)|Bertsekas 1995]]) — value errors don't explode into arbitrarily bad behavior, but the horizon amplifies them
 
+The contraction proved the fixed point is *unique* and *reachable*. Two claims are still owed: that this fixed point really is the **best-possible** values (not just some self-consistent table), and that a *policy* can be recovered from it. That's the next section.
+
+## How values and policies create each other
+
+There are two maps running in opposite directions, and the entire theory is about where they meet:
+
+**Map 1, policy → values (evaluation, by averaging).** Every policy $\pi$ induces its value table $V^\pi$ — "follow $\pi$ and add up what happens." This direction is just the definition; nothing to prove.
+
+**Map 2, values → policy (greedy extraction, by argmax).** Any table $V$ — accurate or garbage — induces a policy: *act as if $V$ were the truth about the future*,
+
+$$\pi_V(s) = \arg\max_a \sum_{s'} P(s' \mid s,a)\,[\,r + \gamma V(s')\,]$$
+
+one step of real lookahead, then trust the table. Garbage in, garbage out: greedy on a bad table is a bad policy. So Map 2 alone proves nothing — the question is **when the loop closes**. Feed a policy through Map 1, its values through Map 2, that policy through Map 1 again… (this circle *is* policy iteration). The loop closes when a policy is **greedy with respect to its own values**: $\pi = \pi_{V^\pi}$. Plug that in: the $\sum_a \pi(a\mid s)$ in $\pi$'s expectation equation selects exactly the maximizing action, so it *becomes* a $\max_a$ — the expectation equation turns into the optimality equation. **A policy greedy on its own values has values satisfying $TV = V$.** Self-consistency between the two maps and the fixed point of $T$ are the same condition.
+
+### Why the fixed point deserves the name "optimal"
+
+Two separate claims, each with a short argument:
+
+**(a) The truly best values $V^*$ satisfy $TV = V$ — so the unique fixed point is $V^*$ and nothing else.** $V^*(s)$ is *defined* as the best expected return from $s$ over all possible behaviors. Split any behavior into (first action, everything after). The best you can do = best over first actions of [immediate reward + γ × best-possible from wherever you land] — because if the continuation were anything less than best-possible, you could splice in the better continuation *without touching the first action* and improve. (That splice argument is Bellman's **principle of optimality**: optimal behavior has optimal tails.) But "best = max over first actions of reward + γ·best-from-next" is *literally* the equation $V^* = TV^*$. So $V^*$ is a fixed point of $T$; the contraction said there's only one; therefore **the** fixed point *is* $V^*$. This is why value iteration can't converge to "self-consistent junk" — no such junk exists; self-consistency under $T$ has exactly one solution and the optimum is it.
+
+**(b) Greedy on $V^*$ actually *achieves* $V^*$ — one-step lookahead suffices for a globally optimal policy.** Worry: the greedy policy $\pi_g = \pi_{V^*}$ only looks one step ahead — couldn't it miss long-term consequences? Argument: because $\pi_g$ always picks the maximizing action, the max in $V^* = TV^*$ is *attained by $\pi_g$'s choices* — meaning $V^*$ satisfies $\pi_g$'s **expectation** equation, $V^* = r_{\pi_g} + \gamma P_{\pi_g} V^*$. But the linear-system section showed that equation has exactly one solution: $V^{\pi_g}$, the *actual* long-run performance of following $\pi_g$. Therefore $V^{\pi_g} = V^*$ — the greedy policy really earns the optimal values. **Myopia is safe here for one reason only: the table being consulted already contains every long-term consequence.** (Greedy on an *inaccurate* table has no such guarantee — only the $\tfrac{2\gamma\epsilon}{1-\gamma}$ bound above.)
+
+Putting it together, the optimal pair $(\pi^*, V^*)$ is the unique point where the two maps invert each other:
+
+$$\pi^* = \pi_{V^*} \quad (\text{greedy on the optimal values}) \qquad\qquad V^* = V^{\pi^*} \quad (\text{which then earns them})$$
+
+Value iteration walks to this point **through value space** — iterate $T$, read the policy off once at the end (step (b) is what licenses that final read-off). Policy iteration walks to it **through the loop itself** — evaluate, extract, evaluate, extract — until the loop closes.
+
 ## The two classical solvers
 
 **Value iteration (VI)** is the convergence proof used as an algorithm: iterate $V_{k+1} = TV_k$ until successive tables barely change, then act greedily. The table above *is* VI running. Simple and global, but the rate is the contraction rate γ — painfully slow when γ ≈ 1 (long horizons).
