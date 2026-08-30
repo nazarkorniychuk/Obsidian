@@ -22,6 +22,17 @@ So the goal is precise: **squeeze several epochs of updates out of each batch (f
 
 ## The derivation: from "one step per batch" to a reusable objective
 
+**The goal, and the end result — stated first, proved below.** Given a batch collected by $\pi_{old}$, we want an objective that can be optimized safely for *many* gradient steps. The destination is this surrogate:
+
+$$\boxed{\;L(\theta) = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}\,\big], \qquad r(\theta) = \frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}\;}$$
+
+together with two provable properties:
+
+- **(P1) Local correctness:** $\nabla_\theta L\,\big|_{\theta_{old}} = \nabla_\theta J\,\big|_{\theta_{old}}$ — climbing $L$ from $\theta_{old}$ starts as a *true* policy-gradient step
+- **(P2) Global safety bound:** $J(\theta) \;\ge\; L(\theta) - C\cdot\max_s \text{KL}(\pi_{old}\,\|\,\pi_\theta)(s)$, with **equality at $\theta_{old}$**
+
+Their joint payoff: **any θ that raises $L$ while keeping the KL small is guaranteed to raise the true performance $J$** — monotonic improvement from stale data. TRPO = maximize $L$ under a hard KL constraint (exact, second-order); PPO = the same, with the constraint faked by a clip (cheap, first-order). The steps below construct $L$ (Steps 0–1), prove P1 (Step 2), locate the failure modes that make P2 necessary (Steps 3–4), state P2 (Step 5), and build the solver (Step 6).
+
 **Step 0 — restate the goal as a wish for a loss function.** After collecting a batch with $\pi_{old}$, [[Policy Gradient]] tells us how to take exactly *one* step:
 
 $$\nabla_\theta J\,\big|_{\theta_{old}} = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,\hat{A}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]_{\theta = \theta_{old}}$$
