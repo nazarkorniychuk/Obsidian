@@ -26,6 +26,8 @@ So the goal is precise: **squeeze several epochs of updates out of each batch (f
 
 $$\nabla_\theta J\,\big|_{\theta_{old}} = \mathbb{E}_{\,s,a \sim \pi_{old}}\big[\,\hat{A}\; \nabla_\theta \log \pi_\theta(a \mid s)\,\big]_{\theta = \theta_{old}}$$
 
+(Notation: the bar $\big|_{\theta_{old}}$ means "evaluated at the point $\theta = \theta_{old}$" — the gradient is a *function* of θ; the bar plugs in one specific value, yielding concrete numbers. Like $f'(x)\big|_{x=3} = 6$ for $f = x^2$.)
+
 The wish: a function $L(\theta)$, computable from that same fixed batch, such that **(a)** climbing $L$ near $\theta_{old}$ climbs the true performance $J$, and **(b)** we may keep climbing for several epochs. Then RL on this batch becomes ordinary supervised optimization of $L$.
 
 **Step 1 — build the candidate by reweighting.** For a candidate $\pi_\theta$, ask at each state in the batch: *how good on average are the actions $\pi_\theta$ would pick here, judged by the advantages we measured?* We can't re-act in those states — but we can reweight what $\pi_{old}$ did:
