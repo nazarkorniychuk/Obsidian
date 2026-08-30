@@ -181,4 +181,4 @@ No model → you can't compute the expectation $\sum_{s'} P(s' \mid s,a)[\cdot]$
 - [[Reinforcement Learning - An Introduction (1998)]] — notation and the algorithmic framing
 
 ---
-Part of the RL foundations cluster — map: [[RL MOC]].
+Part of the RL foundations cluster — hub: [[Reinforcement Learning]] · map: [[RL MOC]].

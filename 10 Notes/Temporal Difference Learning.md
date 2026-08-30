@@ -116,4 +116,4 @@ The critic in [[PPO]]-style [[RLHF]] is a value function trained by TD-style boo
 - [[Reinforcement Learning - An Introduction (1998)]] — DP/MC/TD unification, deadly triad
 
 ---
-Part of the RL foundations cluster — map: [[RL MOC]].
+Part of the RL foundations cluster — hub: [[Reinforcement Learning]] · map: [[RL MOC]].

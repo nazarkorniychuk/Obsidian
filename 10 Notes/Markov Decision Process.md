@@ -44,7 +44,7 @@ Two deliberate choices in that line. It's a **sum** because we care about total 
 
 Why multiply future rewards by $\gamma^k$ at all? Three stacked reasons:
 
-- **Math:** an infinite sum of rewards can diverge; with $\gamma < 1$ the return is bounded, $|G| \le r_{\max}/(1-\gamma)$, and the Bellman operator becomes a **γ-contraction** — the mechanism  every convergence proof in the cluster ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]])
+- **Math:** an infinite sum of rewards can diverge; with $\gamma < 1$ the return is bounded, $|G| \le r_{\max}/(1-\gamma)$, and the Bellman operator becomes a **γ-contraction** — the mechanism behind every convergence proof in the cluster ([[Markov Decision Processes - Puterman (1994)|Puterman 1994]])
 - **Modeling:** $\gamma^t$ decays exponentially, so the agent effectively cares about the next $\approx \tfrac{1}{1-\gamma}$ steps (where the weight has fallen to $1/e$). $\gamma{=}0.9$ → ~10 steps, $0.99$ → ~100 (the Atari default), $0.999$ → ~1000. Choosing γ *is* choosing how far ahead the agent plans:
 
 ![[mdp-discount-horizon.png|460]]
@@ -97,4 +97,4 @@ So the search space collapses from all history-dependent randomized rules to the
 - [[Between MDPs and Semi-MDPs - Options (1999)]] — temporal abstraction
 
 ---
-Part of the RL foundations cluster — map: [[RL MOC]].
+Part of the RL foundations cluster — hub: [[Reinforcement Learning]] · map: [[RL MOC]].

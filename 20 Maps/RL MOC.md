@@ -11,7 +11,8 @@ aliases: [Reinforcement Learning MOC, RL Basics]
 
 ## 🧱 Foundations — one pipeline, four notes
 
-- **[[Markov Decision Process]]** — *poses the problem*: states, actions, rewards, discounting, the Markov property
+- **[[Reinforcement Learning]]** — ⭐ **start here**: the hub — the ACT→EVALUATE→IMPROVE loop, which note owns which stage, planning vs learning, value-based vs policy-based
+- [[Markov Decision Process]] — *poses the problem*: states, actions, rewards, discounting, the Markov property
 - [[Bellman Equation]] — *solves it on paper* when the model is known (**planning**): $V$/$Q$, contraction, value/policy iteration
 - [[Temporal Difference Learning]] — *solves it from experience* when the model is missing (**learning**): sampled backups, TD(λ), the deadly triad
 - [[Exploration vs Exploitation]] — *supplies the experience*: TD only learns what the policy visits — regret, UCB/Thompson, ICM → RND → Go-Explore
