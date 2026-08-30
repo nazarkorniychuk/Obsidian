@@ -7,7 +7,7 @@ aliases: [Reinforcement Learning MOC, RL Basics]
 
 # RL MOC
 
-> Parent: [[Home]] · The map of the vault's reinforcement-learning knowledge. Hub notes in **bold**. *(Foundations written; other sections are planned notes, filled in as we go.)*
+> Parent: [[Home]] · The map of the vault's reinforcement-learning knowledge. Hub notes in **bold**. *(All sections written.)*
 
 ## 🧱 Foundations — one pipeline, four notes
 
@@ -32,16 +32,16 @@ aliases: [Reinforcement Learning MOC, RL Basics]
 
 ## 🗺 Model-based & search
 
-- [[Model-Based RL]] — world models, Dyna, planning vs learning
-- [[Monte Carlo Tree Search]] — AlphaGo → AlphaZero → MuZero lineage
+- [[Model-Based RL]] — Dyna's loop, compounding error + MBPO's fix, Dreamer's imagination training
+- [[Monte Carlo Tree Search]] — UCB in a tree; AlphaGo → AlphaGo Zero → AlphaZero → MuZero; search as policy improvement
 
 ## 🤖 RL for LLMs — post-training
 
-- **[[RLHF]]** — reward model from preferences + PPO on the policy; the InstructGPT recipe
-- [[Reward Model]] — Bradley–Terry preferences, reward hacking, overoptimization scaling laws
-- [[DPO]] — preference optimization without a reward model or RL loop
-- [[GRPO]] — group-relative advantages, critic-free; the DeepSeek-R1 recipe
-- [[RLVR]] — verifiable rewards; reasoning training, test-time compute
+- **[[RLHF]]** — SFT → reward model → PPO + KL budget; the 1.3B > 175B result; the √KL law
+- [[Reward Model]] — Bradley–Terry, the overoptimization scaling laws, why bigger RMs delay but never cure Goodhart
+- [[DPO]] — the closed-form shortcut: RLHF as one classification loss; offline, disease included
+- [[GRPO]] — the group as the baseline; critic deleted; degenerate groups, length bias, DAPO's fixes
+- [[RLVR]] — verifiers replace the RM; R1-Zero's emergent reasoning; the sharpening-vs-discovery debate
 
 ## 🌱 Frontier — queued next
 

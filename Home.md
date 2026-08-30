@@ -9,7 +9,7 @@ type: dashboard
 ## 🗺 Maps
 
 - **[[Deep Learning Basics]]** — the whole cluster, organized
-- **[[RL MOC]]** — reinforcement learning (foundations written, filling in)
+- **[[RL MOC]]** — reinforcement learning (complete: foundations → methods → LLM post-training)
 - Hubs: [[Transformer]] (architecture) · [[Neural Network]] (foundations) · [[Reinforcement Learning]] (the RL loop)
 
 ## 🕐 Recently edited
