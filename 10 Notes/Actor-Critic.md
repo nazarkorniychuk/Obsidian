@@ -22,23 +22,41 @@ You've seen this exact disease and its cure before: it's the MC-vs-TD trade from
 - as the **baseline** (variance reduction, unbiased — the [[Policy Gradient|baseline theorem]])
 - inside the **target** (bootstrapping — updates every step, at the price of the critic's bias)
 
+## The key substitution: from G − V to δ
+
+Start from where [[Policy Gradient]] left off. The refined gradient weights each action's $\nabla \log \pi$ by the Monte Carlo advantage estimate:
+
+$$\underbrace{G_t - V(s_t)}_{\text{"how much the actual future beat the prediction"}}$$
+
+— unbiased, but it carries the randomness of *every future reward*, and you must wait for the episode to end. Now do to this weight exactly what [[Temporal Difference Learning|TD]] did to value targets. The return telescopes, $G_t = r_{t+1} + \gamma\, G_{t+1}$, so:
+
+$$G_t - V(s_t) \;=\; r_{t+1} + \gamma\, \underbrace{G_{t+1}}_{\text{the entire random future}} - \;V(s_t)$$
+
+**The actor-critic move: replace the random tail $G_{t+1}$ with the critic's estimate $V_\phi(s_{t+1})$:**
+
+$$G_t - V(s_t) \;\;\leadsto\;\; r_{t+1} + \gamma\, V_\phi(s_{t+1}) - V_\phi(s_t) \;=\; \delta_t$$
+
+So yes — **δ *is* the advantage estimate, with all-but-one of $G$'s terms collapsed into a bootstrap**. What the swap buys and costs, precisely:
+
+- **Variance collapses:** the weight now contains *one* random reward plus two deterministic numbers, instead of a sum of hundreds of random rewards. And it's available *immediately* — no waiting for episode end
+- **Bias enters — exactly where you'd expect:** during training $V_\phi \neq V^\pi$, so δ systematically mis-scores actions wherever the critic is wrong. The clean identity $\mathbb{E}[\delta_t \mid s_t, a_t] = A^\pi(s_t, a_t)$ (via the [[Bellman Equation|Bellman relation]] $\mathbb{E}[r + \gamma V^\pi(s')] = Q^\pi(s,a)$, minus $V^\pi(s)$) holds **only for the *true* $V^\pi$** — with the learned $V_\phi$, δ is a *biased* advantage estimate whose bias shrinks as the critic improves. Same self-correcting structure as TD itself, and also actor-critic's characteristic instability: a wrong critic misdirects the actor, which then collects data shaped by the misdirection
+- **It's a dial, not a binary:** δ is the fully-bootstrapped corner; $G_t - V(s_t)$ is the no-bootstrap corner; n-step versions ($r_{t+1} + \gamma r_{t+2} + \cdots + \gamma^n V_\phi(s_{t+n}) - V_\phi(s_t)$) sit between; and [[Generalized Advantage Estimation]] is the geometric mix of all of them — the whole MC↔TD trade, now living inside the policy gradient's *weight*
+
 ## The mechanics: one transition, two updates
 
-Experience $(s_t, a_t, r_{t+1}, s_{t+1})$, compute the familiar TD error:
-
-$$\delta_t = r_{t+1} + \gamma\, V_\phi(s_{t+1}) - V_\phi(s_t)$$
-
-Then update both networks *from the same number*:
+Experience $(s_t, a_t, r_{t+1}, s_{t+1})$, compute $\delta_t$, and update both networks *from the same number*:
 
 $$\text{critic:}\quad \phi \leftarrow \phi + \alpha_c\, \delta_t\, \nabla_\phi V_\phi(s_t) \qquad\qquad \text{actor:}\quad \theta \leftarrow \theta + \alpha_a\, \delta_t\, \nabla_\theta \log \pi_\theta(a_t \mid s_t)$$
 
-Why the *same* δ serves both: for the critic it's the usual [[Temporal Difference Learning|TD]] learning signal. For the actor, δ is a **one-sample estimate of the advantage** — $\mathbb{E}[\delta_t \mid s_t, a_t] = A^\pi(s_t, a_t)$, since $\mathbb{E}[r + \gamma V(s')] = Q(s,a)$ and subtracting $V(s)$ gives the advantage. So the actor's update reads exactly like the refined policy gradient: *raise the log-prob of the action by how much it beat the critic's expectation.* The elegant economy of the architecture: **the surprise that trains the critic is the judgment that trains the actor.**
+Two different readings of one δ: the **critic's update is just TD** ($\delta \nabla V$ is the semi-gradient step on the squared error toward the target $r + \gamma V_\phi(s')$); the **actor's update is just the policy gradient** with δ standing in for the advantage — *raise the log-prob of the action by how much it beat the critic's expectation*. The elegant economy: **the surprise that trains the critic is the judgment that trains the actor.**
 
-Interpretation worth keeping: δ > 0 — "that went better than I predicted" → action reinforced *and* prediction raised; δ < 0 — both lowered. (This is also the standard computational reading of dopamine signaling — the TD error made flesh.)
+Tiny numeric run: $V_\phi(s_t) = 2$, $V_\phi(s_{t+1}) = 6$, $r = 1$, γ = 0.5 → $\delta = 1 + 3 - 2 = +2$: the action's log-probability gets pushed up (weight +2) *and* the prediction at $s_t$ gets raised — both networks conclude "that went better than expected," each in its own currency. A Monte Carlo version of the same update couldn't fire until the episode ended. (δ > 0 → reinforce and raise; δ < 0 → suppress and lower — also the standard computational reading of dopamine signaling, the TD error made flesh.)
 
 ## The deep-RL landmark: A3C, and parallelism as the on-policy replay
 
-Naive deep actor-critic hits the same correlated-data problem as naive [[Deep Q-Network|deep Q-learning]] — but it *can't use a replay buffer*, because policy gradients are on-policy (old policies' actions carry the wrong log-probs). **A3C's** answer ([[Asynchronous Methods for Deep RL - A3C (2016)|Mnih 2016]]): run **16 parallel actor-learners**, each on its own environment copy, asynchronously updating shared weights. At any instant the workers occupy different episodes and situations — the combined gradient stream is decorrelated **by parallelism instead of by memory**, and everything stays perfectly on-policy.
+Naive deep actor-critic hits the same correlated-data problem as naive [[Deep Q-Network|deep Q-learning]]: consecutive transitions are near-duplicates, and SGD wants independent samples. But the DQN cure is illegal here. **Why a replay buffer breaks a policy gradient:** the estimator $\mathbb{E}_{a \sim \pi_\theta}[\delta\, \nabla \log \pi_\theta(a \mid s)]$ is an average over actions drawn *from the current policy* — that's what makes it the gradient of the current policy's performance. A transition replayed from a month-old buffer has its action drawn from $\pi_{old}$: plugging it in weights the current gradient by the *wrong sampling distribution*, and the estimator silently stops pointing uphill. (Correcting the mismatch with probability ratios is possible — that road leads to [[PPO]].)
+
+**A3C's** answer keeps everything on-policy ([[Asynchronous Methods for Deep RL - A3C (2016)|Mnih 2016]]): run **16 parallel actor-learners**, each on its own environment copy, asynchronously updating shared weights. Look at what a combined gradient batch contains at any instant: worker 3 is mid-boss-fight, worker 9 just respawned, worker 14 is in a level the others haven't reached — a *cross-section* of many episodes and situations rather than a filmstrip of one. Decorrelation **by parallelism instead of by memory**, with every sample fresh from the current policy.
 
 - **Results:** surpassed the then-SOTA on Atari in **half the training time on a multi-core CPU** (no GPU); same framework handled continuous motor control and 3D mazes from pixels
 - The full recipe — parallel rollouts, **n-step returns** (the [[Temporal Difference Learning|bias–variance dial]] set a few notches from pure TD), an **entropy bonus** keeping the policy from collapsing ([[Exploration vs Exploitation|strategy-3 exploration]], built into the loss) — became *the* on-policy template
