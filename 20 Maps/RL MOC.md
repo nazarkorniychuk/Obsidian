@@ -24,9 +24,10 @@ aliases: [Reinforcement Learning MOC, RL Basics]
 
 ## 🧭 Policy-gradient methods
 
-- [[Policy Gradient]] — REINFORCE, the log-derivative trick, baselines and variance reduction
-- [[Actor-Critic]] — A2C/A3C; [[Generalized Advantage Estimation]]
-- **[[PPO]]** — the workhorse: clipped surrogate objective, TRPO lineage, implementation details that matter
+- [[Policy Gradient]] — why go direct; the log-derivative trick derived; baselines → advantage
+- [[Actor-Critic]] — critic as baseline + bootstrap; δ trains both; A3C's parallelism-instead-of-replay
+- [[Generalized Advantage Estimation]] — the λ-dial applied to advantages; PPO's default estimator
+- **[[PPO]]** — the workhorse: TRPO's trust region as a clipped loss; K epochs per batch; the code-level truths; gateway to RLHF
 
 ## 🗺 Model-based & search
 
