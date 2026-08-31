@@ -71,8 +71,6 @@ Why that's the right recipe: at any single state, "the average advantage of the 
 
 $$\mathbb{E}_{a \sim \pi_\theta}\big[\hat{A}^{\pi_{old}}\big] \;=\; \sum_a \pi_\theta(a \mid s)\,\hat{A}^{\pi_{old}} \;=\; \sum_a \pi_{old}(a \mid s)\cdot\underbrace{\frac{\pi_\theta(a \mid s)}{\pi_{old}(a \mid s)}}_{r(\theta)}\cdot\hat{A}^{\pi_{old}} \;=\; \mathbb{E}_{a \sim \pi_{old}}\big[\,r(\theta)\,\hat{A}^{\pi_{old}}\,\big]$$
 
-Numeric check — $\pi_{old} = (.5, .5)$, $\pi_\theta = (.8, .2)$, $\hat{A}^{\pi_{old}} = (+1, -1)$: direct answer $0.8(+1) + 0.2(-1) = \mathbf{+0.6}$; reweighted batch $0.5(1.6)(+1) + 0.5(0.4)(-1) = \mathbf{+0.6}$ ✓.
-
 What $L$ *measures*: the estimated **gain over the old policy**, not absolute performance. Sanity check at the anchor: $L(\theta_{old}) = \mathbb{E}_{a\sim\pi_{old}}[\hat{A}^{\pi_{old}}] = 0$, because advantages are zero-mean under their own policy ([[Bellman Equation|A = Q − V]]) — the gain of not moving is zero, as it should be. Since $J(\theta_{old})$ is a fixed constant, maximizing the gain is the same as maximizing $J$.
 
 ### Step 2 — the gradient of L, derived, then evaluated at the anchor
@@ -158,7 +156,7 @@ $F$ is the **Fisher matrix** — KL's curvature at the anchor. In words: it meas
 
 $$\Delta\theta = \sqrt{\tfrac{2\delta}{g^\top F^{-1} g}}\;\, F^{-1} g$$
 
-What $F^{-1}$ *does*, numerically: suppose two parameter directions promise equal gain, $g = (1, 1)$, but $F = \mathrm{diag}(100, 1)$ — the first direction bends the distribution 100× more per unit step. Then $F^{-1}g = (0.01, 1)$: the touchy direction is almost frozen, the safe one moves at full speed. **The natural gradient spends the KL budget where distribution-change is cheap** — this is exactly "limit the step in policy space, not parameter space" made into linear algebra.
+What $F^{-1}$ *does*: dividing by the curvature rescales the gradient direction-by-direction — directions where a small parameter move bends the distribution a lot get shrunk hard, directions that barely move it proceed at full speed. **The natural gradient spends the KL budget where distribution-change is cheap** — exactly "limit the step in policy space, not parameter space," made into linear algebra.
 
 **T4 — never form F.** It's (params × params) — millions squared, unstorable. Two rescues: (i) the solve only ever needs **Fisher-vector products**, $Fv = \mathbb{E}\big[(\nabla\log\pi \cdot v)\,\nabla\log\pi\big]$ — one double-backprop each, no matrix materialized; (ii) **conjugate gradient** solves $Fx = g$ from ~10 such products (with damping $(F + \lambda I)x = g$, λ ≈ 0.1, because $F$ is ill-conditioned).
 
