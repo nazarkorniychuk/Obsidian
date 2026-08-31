@@ -107,7 +107,7 @@ Take the boxed general gradient (note $\pi_{old} \cdot r(\theta) = \pi_\theta$, 
 
 So the equality of Step 2 is **true only at the anchor** — away from it, two cracks open and widen with distance:
 
-- **Crack 1 — ratio variance:** $\pi_{old}(a) = 0.01,\ \pi_\theta(a) = 0.5 \Rightarrow r = 50$: a few lucky samples, weighted 50×, carry the whole estimate
+- **Crack 1 — ratio variance:** wherever $\pi_\theta$ assigns an action much more probability than $\pi_{old}$ did, that sample's ratio is huge — a handful of such samples dominate the whole average, and $L$ becomes a high-variance estimate hanging on a few lucky draws
 - **Crack 2 — frozen states:** the new policy will visit places the batch never saw, and $L$ knows nothing about them; no ratio can fix this one
 
 **Part 1's verdict:** $L$ is a compass that is exact where you stand, decent nearby, and a liar far away. Everything that follows is a policy for *how far to walk before you stop trusting it* — TRPO measures the safe radius and enforces it exactly; PPO builds the radius into the loss.
@@ -122,7 +122,7 @@ So the equality of Step 2 is **true only at the anchor** — away from it, two c
 
 $$\text{KL}(p \,\|\, q) = \sum_x p(x)\,\log\frac{p(x)}{q(x)} \qquad — \;0 \text{ iff } p = q;\; \text{grows with divergence}$$
 
-Numbers: $(.5,.5)$ vs $(.8,.2)$ → 0.22 nats; vs $(.55,.45)$ → 0.005 nats. Why KL and not $\|\theta - \theta_{old}\|$: *behavior*, not parameters, is what drifts ([[Attention Mechanism|softmax]] of logits — tiny θ moves can be huge distribution moves, and vice versa). And KL is tailor-made for Crack 1: $\text{KL}(\pi_{old}\|\pi_\theta) = \mathbb{E}_{\pi_{old}}[-\log r]$ — **it is the average log of the very ratio that misbehaves**, so capping the KL caps the ratios.
+Why KL and not $\|\theta - \theta_{old}\|$: *behavior*, not parameters, is what drifts ([[Attention Mechanism|softmax]] of logits — tiny θ moves can be huge distribution moves, and vice versa). And KL is tailor-made for Crack 1: $\text{KL}(\pi_{old}\|\pi_\theta) = \mathbb{E}_{\pi_{old}}[-\log r]$ — **it is the average log of the very ratio that misbehaves**, so capping the KL caps the ratios.
 
 ### The guarantee: a floor that touches
 
@@ -142,7 +142,11 @@ $$\max_\theta\; \mathbb{E}\big[\,r(\theta)\,\hat{A}^{\pi_{old}}\,\big] \quad \te
 
 ### The solver, in six moves
 
-**T1 — linearize the objective.** One backward pass at the anchor: $g = \nabla_\theta L\,\big|_{\theta_{old}}$. Near the anchor, $L(\theta_{old} + \Delta\theta) \approx g^\top \Delta\theta$ — a plane.
+**T1 — replace the objective by its tangent plane.** The unknown we're solving for is the step $\Delta\theta = \theta - \theta_{old}$. The true $L$ is a complicated neural-net function of that step — intractable under a constraint. So swap it for its first-order Taylor expansion at the anchor:
+
+$$L(\theta_{old} + \Delta\theta) \;\approx\; \underbrace{L(\theta_{old})}_{=\,0\ \text{(Part 1)}} +\; g^\top \Delta\theta, \qquad g = \nabla_\theta L\,\big|_{\theta_{old}}$$
+
+$g$ is a single fixed vector, computed by one backward pass; $g^\top \Delta\theta = \sum_i g_i \Delta\theta_i$ is the **predicted gain from taking step $\Delta\theta$** — linear in the step (its graph is a flat tilted plane, the tangent plane to $L$'s curved landscape at the point where we stand). T2 now does the same to the constraint, and the *pair* is the point: plane-inside-bowl is a toy problem with a closed-form solution (T3) — and the trust region is exactly what keeps the toy honest, since inside a small ball every smooth function is well-approximated by its tangent.
 
 **T2 — quadratize the constraint.** Taylor-expand the KL at the anchor. Its value there is 0, and its *gradient* there is also 0 — KL is *minimized* at equality, and you can't be below a minimum in any direction — so the first surviving term is second-order:
 
