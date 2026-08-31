@@ -113,7 +113,29 @@ $$J(\theta) \;\ge\; J(\theta_{old}) + L(\theta) \;-\; C\,\max_s \text{KL}\big(\p
 
 The improvement argument, in three short sentences: **(i)** the right side never exceeds $J$ — it's a *floor*. **(ii)** At $\theta_{old}$ the floor *touches*: both sides equal $J(\theta_{old})$ (since $L = 0$, KL $= 0$ there). **(iii)** Therefore, if you find any θ where the floor is higher than $J(\theta_{old})$, the truth $J(\theta)$ — sitting on or above the floor — must be higher too. **Guaranteed improvement**, and note it needed *nothing* about $L$'s gradient away from the anchor.
 
-TRPO turns this into an algorithm by swapping the (hugely conservative) penalty for a hard budget: $\max_\theta \mathbb{E}[r\hat{A}^{\pi_{old}}]$ s.t. $\overline{\text{KL}} \le \delta$ — solved with second-order machinery (Fisher matrix, conjugate gradient, line search). **Results:** robust gaits + Atari with little tuning. **Price:** complex, expensive, incompatible with shared policy/value networks. **PPO keeps Steps 1–5 and replaces only the solver.**
+TRPO turns this into an algorithm by swapping the (hugely conservative) penalty for a hard budget — and the solver deserves its small details, because they are the entire price:
+
+$$\max_\theta\; \mathbb{E}\big[\,r(\theta)\,\hat{A}^{\pi_{old}}\,\big] \quad \text{s.t.} \quad \overline{\text{KL}}(\pi_{old}\,\|\,\pi_\theta) \le \delta, \qquad \delta \approx 0.01$$
+
+**T1 — linearize the objective.** One backward pass: $g = \nabla_\theta L\,\big|_{\theta_{old}}$. Near the anchor, $L \approx g^\top \Delta\theta$.
+
+**T2 — quadratize the constraint.** Taylor-expand the KL at the anchor: its value is 0 there and its gradient is 0 there (KL is *minimized* at equality), so the leading term is second-order:
+
+$$\overline{\text{KL}} \;\approx\; \tfrac{1}{2}\,\Delta\theta^\top F\,\Delta\theta, \qquad F = \mathbb{E}\big[\nabla\log\pi\;\nabla\log\pi^\top\big]\ \text{(the Fisher matrix)}$$
+
+The problem is now geometric: **maximize a line inside an ellipsoid**.
+
+**T3 — solve it on paper.** Lagrange gives the direction $F^{-1}g$ — the **natural gradient**: the plain gradient, corrected for how much each θ-direction actually moves the *distribution* — scaled to touch the ellipsoid's boundary:
+
+$$\Delta\theta = \sqrt{\tfrac{2\delta}{g^\top F^{-1} g}}\;\, F^{-1} g$$
+
+**T4 — never form $F$.** It's (params × params) — millions squared. Two rescues: (i) only **Fisher-vector products** are ever needed, $Fv = \mathbb{E}\big[(\nabla\log\pi \cdot v)\,\nabla\log\pi\big]$ — one double-backprop, no matrix materialized; (ii) **conjugate gradient** solves $Fx = g$ from ~10 such products (with damping, $(F + \lambda I)x = g$, λ ≈ 0.1, since $F$ is ill-conditioned).
+
+**T5 — line search, because Taylor lies.** The analytic step trusted two approximations. So: try $\theta_{old} + \Delta\theta$, then *verify on the real objects* — actual mean KL ≤ δ **and** actual surrogate improved. Fail → halve the step and retry (up to ~10 halvings); all fail → take **no step**.
+
+**T6 — one update per batch, total.** Cost: ~10–20× a single gradient step, spent on one (excellent) step — and the double-backprop KL machinery must see the *policy alone*: no shared policy/value trunk, no dropout.
+
+**Results:** robust gaits + Atari with little tuning ([[Trust Region Policy Optimization (2015)|Schulman 2015]]). **Price:** everything in T4–T6. **PPO keeps Steps 1–5 and replaces only this solver.**
 
 ## PPO: the trust region as a loss function
 
@@ -125,16 +147,32 @@ The constrained second-order problem becomes an unconstrained first-order loss:
 
 $$L^{CLIP}(\theta) = \mathbb{E}_t\Big[\min\big(\, r_t(\theta)\,\hat{A}^{\pi_{old}}_t,\;\; \text{clip}(r_t(\theta),\, 1{-}\epsilon,\, 1{+}\epsilon)\,\hat{A}^{\pi_{old}}_t \,\big)\Big], \qquad \epsilon = 0.2$$
 
-Walk the logic, separately for the two signs of the advantage:
+**The training loop, concretely (what replaces T1–T6):**
+
+1. Collect the batch with $\pi_{old}$, **caching $\log \pi_{old}(a \mid s)$ per sample**; compute GAE advantages; normalize them over the batch
+2. For **3–10 epochs**: shuffle into minibatches (64–256); per minibatch, one **Adam** step (lr ≈ 3e-4, annealed) on the combined loss
+
+$$L = -L^{CLIP} \;+\; c_1\big(V_\phi(s) - V^{targ}\big)^2 \;-\; c_2\, H\big(\pi_\theta(\cdot \mid s)\big), \qquad c_1 = 0.5,\; c_2 = 0.01$$
+
+   — policy, value, and [[Exploration vs Exploitation|entropy bonus]] in **one loss on one (shareable) network**, the thing TRPO forbade. The ratio is recomputed each step from the cache: $r = \exp\big(\log\pi_\theta - \log\pi_{old}\big)$
+3. Optional guardrail: **early-stop the epochs** if measured mean KL exceeds ~0.015
+4. Discard the batch; $\pi_{old} \leftarrow \pi_\theta$; repeat
+
+**Where did the trust region go? Inside the min/clip, enforced per sample.** Walk every case:
 
 ![[ppo-clip-objective.png|560]]
 
-- **Good action ($\hat{A}^{\pi_{old}} > 0$):** the objective rewards raising the ratio — but only up to $1{+}\epsilon$, where the clip makes it **flat**. Beyond that point the gradient is *zero*: no incentive to push a good action's probability further on this batch. Enthusiasm, capped
-- **Bad action ($\hat{A}^{\pi_{old}} < 0$):** by symmetry you'd expect the penalty to flatten below $1{-}\epsilon$ — and for *reducing* the ratio it does. But look at the right side of the plot: if the ratio has (through other updates) *risen* on a bad action, the **min picks the unclipped branch, and the penalty keeps growing**. This is the crucial asymmetry: the min makes the bound **one-sided pessimistic** — clipping only ever *removes reward* for moving too far; it never shields a move that makes things worse. Mistakes always generate corrective gradient; wins stop paying at the boundary
+| case | min picks | gradient | meaning |
+|---|---|---|---|
+| $\hat{A}^{\pi_{old}} > 0$, $r \le 1{+}\epsilon$ | unclipped | flows ↑ | keep raising a good action |
+| $\hat{A}^{\pi_{old}} > 0$, $r > 1{+}\epsilon$ | clipped constant | **zero** | already boosted 20% — the sample goes silent |
+| $\hat{A}^{\pi_{old}} < 0$, $r \ge 1{-}\epsilon$ | unclipped | flows ↓ | keep suppressing a bad action |
+| $\hat{A}^{\pi_{old}} < 0$, $r < 1{-}\epsilon$ | clipped constant | **zero** | already suppressed 20% — silent |
+| $\hat{A}^{\pi_{old}} < 0$, $r > 1{+}\epsilon$ | **unclipped** (it's *more negative*) | **still flows ↓** | a bad action's probability *rose* via side-effects — punishment never switches off |
 
-The payoff: with each sample's influence bounded this way, it becomes safe to run **K epochs (3–10) of minibatch SGD on the same batch** — the sample reuse that vanilla PG forbids, obtained *without* a replay buffer and without leaving the on-policy regime (a batch is reused a few epochs, then discarded — contrast [[Deep Q-Network|DQN]]'s million-step buffer).
+The last row is the min's **one-sided pessimism**: wins saturate at the fence; mistakes are never shielded. Net effect across the epochs: **each sample retires itself once its ratio hits the wall**, so the update naturally runs out of fuel near the boundary — a trust region enforced by *removing incentives* rather than by solving a constrained program. That is what licenses reusing the batch for many epochs: sample reuse without a replay buffer, without leaving the on-policy regime (a batch lives a few epochs, then dies — contrast [[Deep Q-Network|DQN]]'s million-step buffer).
 
-**The full loss** in practice adds two terms: $L = L^{CLIP} - c_1\, L^{VF} + c_2\, H(\pi_\theta)$ — the critic's value loss (shared network, one optimizer — the thing TRPO couldn't do) and the **entropy bonus** paying the policy to stay stochastic ([[Exploration vs Exploitation|exploration, built into the loss]]).
+**Fine print, honestly:** the clip zeroes *gradients* — it does not hard-bound the total KL. Ratios can still drift outside the band through shared-parameter side-effects (the "Truly PPO" critique), which is why the KL early-stop guardrail and the code-level stack below carry real weight.
 
 **Results:** outperforms the other online policy-gradient methods on MuJoCo continuous control and Atari; overall the best balance of **sample complexity, simplicity, and wall-time** ([[Proximal Policy Optimization (2017)|Schulman 2017]]). First-order only — it runs wherever Adam runs.
 
