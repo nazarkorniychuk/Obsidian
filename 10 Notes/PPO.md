@@ -138,31 +138,38 @@ $$\max_\theta\; \mathbb{E}\big[\,r(\theta)\,\hat{A}^{\pi_{old}}\,\big] \quad \te
 
 (δ here is the KL budget — a hyperparameter, not a TD error). This has no closed-form solution for a neural policy — but near the anchor, both pieces admit cheap approximations, and the approximated problem *does* solve on paper. That's the solver.
 
-### The solver, in six moves
+### The solver — why "just backprop it" fails, then six moves
 
-**T1 — replace the objective by its tangent plane.** The unknown we're solving for is the step $\Delta\theta = \theta - \theta_{old}$. The true $L$ is a complicated neural-net function of that step — intractable under a constraint. So swap it for its first-order Taylor expansion at the anchor:
+Start with the objection the whole solver answers: *why not simply backprop $L$ and take Adam steps?* Because **backprop can't see the fence.** SGD/Adam solve exactly one kind of problem — follow the gradient of an *unconstrained* loss — and TRPO's problem has a different shape: *find the best point inside a region*. There is no "subject to" slot in an optimizer. The two obvious ways to fake one both fail:
+
+- **"Backprop $L$ with a small learning rate."** A learning rate bounds the step in *θ-space*; the fence lives in *KL-space* — and the same-sized θ-step can be a negligible or an enormous KL-step depending on its *direction* (the ruler section's whole point). So one scalar α is always wrong: unsafe along touchy directions, wastefully timid along safe ones. What you'd actually need is a **per-direction step size, set by how much each direction moves the distribution** — hold that thought; it is exactly what $F^{-1}$ turns out to be (T3).
+- **"Put the KL into the loss as a penalty and backprop that."** Then a weight β has to translate "never more than δ" into soft pressure — and no fixed β does: too small, fence broken; too large, no progress; the right value drifts over training. (This is literally PPO's Attempt 1 in Part 3, and it loses.) TRPO's promise is the *hard* fence.
+
+So TRPO solves the constrained problem for real, once per batch. The enabling trick: **inside a small trust region, replace both curved objects by their simplest local models — objective → plane, constraint → bowl — because *that* constrained problem has an exact pencil-and-paper solution.** Backprop still appears, but demoted to a data supplier: it produces the local shape information ($g$, and products with $F$); the *step* comes from solving the fenced model problem exactly, then checking it against reality.
+
+**T1 — model the objective as a plane.** The unknown is the step $\Delta\theta = \theta - \theta_{old}$. First-order Taylor at the anchor:
 
 $$L(\theta_{old} + \Delta\theta) \;\approx\; \underbrace{L(\theta_{old})}_{=\,0\ \text{(Part 1)}} +\; g^\top \Delta\theta, \qquad g = \nabla_\theta L\,\big|_{\theta_{old}}$$
 
-$g$ is a single fixed vector, computed by one backward pass; $g^\top \Delta\theta = \sum_i g_i \Delta\theta_i$ is the **predicted gain from taking step $\Delta\theta$** — linear in the step (its graph is a flat tilted plane, the tangent plane to $L$'s curved landscape at the point where we stand). T2 now does the same to the constraint, and the *pair* is the point: plane-inside-bowl is a toy problem with a closed-form solution (T3) — and the trust region is exactly what keeps the toy honest, since inside a small ball every smooth function is well-approximated by its tangent.
+$g$ is one fixed vector (one backward pass computes it); $g^\top \Delta\theta$ is the **predicted gain from taking step $\Delta\theta$** — linear in the step, a flat tilted plane standing in for $L$'s curved landscape. Only legitimate near the anchor — which is fine, because the fence *keeps* us near the anchor.
 
-**T2 — quadratize the constraint.** Taylor-expand the KL at the anchor. Its value there is 0, and its *gradient* there is also 0 — KL is *minimized* at equality, and you can't be below a minimum in any direction — so the first surviving term is second-order:
+**T2 — model the constraint as a bowl.** Taylor-expand the KL at the anchor. Its value there is 0, and its gradient there is also 0 (KL is *minimized* at equality — you can't sit below a minimum), so the first surviving term is second-order:
 
 $$\overline{\text{KL}}(\pi_{old}\,\|\,\pi_{\theta_{old}+\Delta\theta}) \;\approx\; \tfrac{1}{2}\,\Delta\theta^\top F\,\Delta\theta, \qquad F = \mathbb{E}\big[\nabla\log\pi\;\nabla\log\pi^\top\big]$$
 
-$F$ is the **Fisher matrix** — KL's curvature at the anchor. In words: it measures, direction by direction, *how much a small parameter move bends the distribution*. For a single parameter, KL ≈ ½FΔθ² is a parabola whose steepness F says how touchy that parameter is. The problem is now pure geometry: **maximize a plane inside an ellipsoid.**
+$F$ is the **Fisher matrix** — KL's curvature at the anchor: direction by direction, *how much a small parameter move bends the distribution*. The constraint "KL ≤ δ" becomes "stay inside the ellipsoid $\tfrac{1}{2}\Delta\theta^\top F\Delta\theta \le \delta$", and the problem is now pure geometry: **maximize a plane inside an ellipsoid** — which solves exactly.
 
-**T3 — solve the geometric problem on paper.** Lagrange gives the direction $F^{-1}g$ — the **natural gradient** — scaled to exactly touch the ellipsoid's boundary (plug $\Delta\theta = \beta F^{-1}g$ into $\tfrac{1}{2}\Delta\theta^\top F \Delta\theta = \delta$ and solve for β):
+**T3 — solve the model problem on paper.** Lagrange gives the direction $F^{-1}g$, scaled to land exactly on the fence (plug $\Delta\theta = \beta F^{-1}g$ into $\tfrac{1}{2}\Delta\theta^\top F \Delta\theta = \delta$, solve for β):
 
 $$\Delta\theta = \sqrt{\tfrac{2\delta}{g^\top F^{-1} g}}\;\, F^{-1} g$$
 
-What $F^{-1}$ *does*: dividing by the curvature rescales the gradient direction-by-direction — directions where a small parameter move bends the distribution a lot get shrunk hard, directions that barely move it proceed at full speed. **The natural gradient spends the KL budget where distribution-change is cheap** — exactly "limit the step in policy space, not parameter space," made into linear algebra.
+Read it as the answer to the learning-rate complaint above: $F^{-1}$ is the **per-direction learning rate** — each direction's gradient divided by that direction's distributional touchiness, shrinking dangerous directions and letting safe ones run — and the scalar in front sets the overall size so the step spends the whole KL budget, no more. This is the **natural gradient**: backprop's direction, re-measured in policy space instead of parameter space.
 
-**T4 — never form F.** It's (params × params) — millions squared, unstorable. Two rescues: (i) the solve only ever needs **Fisher-vector products**, $Fv = \mathbb{E}\big[(\nabla\log\pi \cdot v)\,\nabla\log\pi\big]$ — one double-backprop each, no matrix materialized; (ii) **conjugate gradient** solves $Fx = g$ from ~10 such products (with damping $(F + \lambda I)x = g$, λ ≈ 0.1, because $F$ is ill-conditioned).
+**T4 — make it computable.** $F$ is (params × params) — millions squared, unstorable, let alone invertible. Two rescues: (i) the solve only ever needs **Fisher-vector products**, $Fv = \mathbb{E}\big[(\nabla\log\pi \cdot v)\,\nabla\log\pi\big]$ — one double-backprop each, no matrix ever formed; (ii) **conjugate gradient** extracts $F^{-1}g$ from ~10 such products (with damping $(F + \lambda I)x = g$, λ ≈ 0.1, since $F$ is ill-conditioned).
 
-**T5 — line search, because Taylor lies.** The analytic step trusted two approximations (T1's plane, T2's ellipsoid). So: try $\theta_{old} + \Delta\theta$, then *verify on the real objects* — actual mean KL ≤ δ **and** actual surrogate $L$ improved. Fail → halve the step and retry (up to ~10 halvings); all fail → take **no step**. The guarantee is checked, not assumed.
+**T5 — verify on reality, because the models were models.** The step came from a plane and a bowl, not from the real $L$ and real KL. So: tentatively apply $\theta_{old} + \Delta\theta$, then check the *real objects* — measured mean KL ≤ δ **and** measured $L$ improved. Fail → halve the step and retry (up to ~10 halvings); all fail → take **no step**. The guarantee is checked, not assumed.
 
-**T6 — one update per batch, total.** All of that machinery produces exactly *one* (excellent) policy update, then the batch is discarded.
+**T6 — all of that buys exactly one update.** Then the batch is discarded.
 
 TRPO's loop, assembled — put it next to the baseline loop to see what changed:
 
