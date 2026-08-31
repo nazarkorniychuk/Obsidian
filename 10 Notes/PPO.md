@@ -174,7 +174,7 @@ Read it as the answer to the learning-rate complaint above: $F^{-1}$ is the **pe
 TRPO's loop, assembled — put it next to the baseline loop to see what changed:
 
 1. Roll out $\pi_{old}$ → batch; compute $\hat{A}^{\pi_{old}}$ (GAE), exactly as before
-2. One backward pass → $g$ (T1); ~10 CG iterations of Fisher-vector products → $F^{-1}g$ (T4)
+2. One backward pass → $g$ (T1); ~10 CG iterations of Fisher-vector products → $F^{-1}g$ (T4; CG = **conjugate gradient**, an iterative solver for the linear system $Fx = g$ — each iteration needs only one product $Fv$, never $F$ itself, and ~10 iterations already give a good $x \approx F^{-1}g$)
 3. Analytic step length (T3); line-search halvings verifying real KL and real improvement (T5)
 4. **One** verified update (T6); discard batch; repeat
 
