@@ -32,6 +32,25 @@ Why doesn't everyone do this? Because imagined rollouts feed the model's own sli
 
 The pixel-era version: learn a compact **latent** dynamics model (encode observations, predict forward in latent space) and train actor + critic **entirely on imagined latent trajectories** ([[Mastering Diverse Domains - DreamerV3 (2023)|the Dreamer line]]: PlaNet → Dreamer → V2, the first world-model agent at human-level Atari, → V3). **Results for V3:** outperforms specialized methods across **150+ tasks with one configuration**, and is the **first algorithm to collect diamonds in Minecraft from scratch** — no human data, no curricula: long-horizon sparse-reward exploration from pixels. Latent imagination sidesteps part of the compounding problem (no need to predict pixels, only decision-relevant state) — the same insight [[Mastering Atari Go Chess Shogi - MuZero (2019)|MuZero]] pushes to its limit: learn a model that predicts *only what planning consumes* (policy, value, reward), nothing else.
 
+## The recipes: how you'd actually build one
+
+**Dyna-Q — the tabular rung (an afternoon of code).** The model can literally be a hash map: after each real transition, $\text{model}[s,a] \leftarrow (r, s')$ (last-observed works for deterministic worlds; keep counts/averages for stochastic ones). The loop:
+
+1. Act ε-greedy from $Q$; observe $(s, a, r, s')$; one ordinary [[Q-Learning]] update
+2. Store the transition in the model
+3. **Plan, $n$ times** ($n$ = 5–50): pick a random *previously visited* $(s,a)$, look up the model's $(r, s')$, apply *the identical Q-learning update* to the imagined transition
+
+Step 3 is the entire idea — same update rule, hallucinated data — and $n$ is the knob that converts compute into sample efficiency.
+
+**MBPO-style — the deep rung (continuous control).** Four design decisions carry it, and every one is an answer to the compounding-error disease above ([[When to Trust Your Model - MBPO (2019)|MBPO]]):
+
+1. **The model is an ensemble** (~7 nets, best ~5 kept by validation loss), each predicting a Gaussian over the *change* $\Delta s = s' - s$ and the reward — deltas, not raw next states, so the net learns dynamics rather than copying its input. The ensemble is the uncertainty meter: where members disagree, the model doesn't know
+2. **Imagine only short rollouts (a few steps), branched from random *real* states in the replay buffer** — never from the initial state, never far from data. Each imagined step queries a randomly chosen ensemble member, so model uncertainty shows up as visible noise instead of one net's confident fiction
+3. **Digest the imagined data with an off-policy learner** (SAC): imagined transitions go to their own buffer, and the learner takes many gradient steps per real environment step — synthetic experience is unlimited, so spend it
+4. **Refresh on a schedule**: retrain the model every few hundred real steps and regenerate the rollouts — imagined data from a stale model is exactly the fiction the disease warns about
+
+The transferable rules of thumb, even outside MBPO: predict deltas; ensemble for uncertainty; imagination branches *from* data and stays *near* data; an off-policy learner to absorb the synthetic experience.
+
 ## When to reach for it
 
 The [[Value-Based vs Policy-Based RL|sample-efficiency ladder]]: on-policy PG → off-policy value → **model-based**, which wins when data is scarcest — [[Mastering Atari with Limited Data - EfficientZero (2021)|EfficientZero]]'s 194% mean-human Atari-100k with 500× less data than DQN is the flagship number. The trade: model bias replaces sample cost, and exploitable model error is a standing risk. Two distinct ways to *use* the model, worth keeping separate: **background planning** (Dyna/Dreamer — imagined data trains a policy offline) vs **decision-time planning** (search at the moment of acting — [[Monte Carlo Tree Search]]).

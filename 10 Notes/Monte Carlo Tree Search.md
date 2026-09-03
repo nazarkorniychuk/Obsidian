@@ -29,6 +29,32 @@ The loop, four phases per simulation: **select** (descend by UCB until leaving t
 - **AlphaZero** ([[A General RL Algorithm - AlphaZero (2018)|Silver 2018]]): the same loop, unchanged, mastered **chess, shogi, and Go — superhuman within 24 hours each**, beating Stockfish (decades of hand-crafted search engineering) while evaluating *thousands* of positions per second to Stockfish's tens of millions: learned evaluation buys selective depth over brute breadth
 - **MuZero** ([[Mastering Atari Go Chess Shogi - MuZero (2019)|Schrittwieser 2019]]): delete the rules. Plan inside a **learned latent model** trained to predict only what the search consumes — policy, value, reward — never reconstructing the world. **Matched AlphaZero in the board games without knowing the rules, and set SOTA on Atari-57**, the domain where model-based planning had always failed. The bridge to [[Model-Based RL]] complete
 
+## The recipe: an AlphaZero-style agent, ready to implement
+
+The exact skeleton of [[A General RL Algorithm - AlphaZero (2018)|AlphaZero]] — what you'd write for any perfect-information board game, scale aside.
+
+**The network.** One net, two heads: input = board tensor (current position + a few history planes, side to move); **policy head** → logits over an encoding of all possible moves; **value head** → $v \in [-1, 1]$, the predicted outcome *from the perspective of the player to move*. A small ResNet suffices for small games.
+
+**The tree.** Each edge $(s, a)$ stores four numbers: visit count $N$, total value $W$, mean value $Q = W/N$, prior $P$ (the network's policy at $s$). One **simulation** = the four UCT phases, with the network replacing the rollout:
+
+1. **Select** — from the root, repeatedly take the edge maximizing PUCT (UCB with the prior steering exploration):
+$$a = \arg\max_a\; Q(s,a) \;+\; c_{puct}\, P(s,a)\, \frac{\sqrt{\sum_b N(s,b)}}{1 + N(s,a)}$$
+   Store values from the perspective of the player to move and **negate at each ply** (your good position is my bad one). Unvisited edges have $Q = 0$ and a bonus ∝ $P$ — the network's favorite moves get tried first.
+2. **Expand & evaluate** — at a leaf: *one* network call → $(p, v)$; create the children with priors $p$. No rollout: $v$ *is* the evaluation (terminal positions use the true game result instead).
+3. **Backup** — walk the path back to the root: $N \mathrel{+}{=} 1$, $W \mathrel{+}{=} v$ (sign alternating per ply), $Q = W/N$.
+
+Run a few hundred simulations per move (AlphaZero: 800). Then **act by visit count, not by $Q$** — visits are the robust statistic: play $a \sim N(a)^{1/\tau}$, with temperature $\tau = 1$ for the first ~30 plies (diverse openings), $\tau \to 0$ after (best move). Record $\pi \propto N$ at every position — *the search's verdict becomes the training target*.
+
+**Root noise — the non-optional exploration piece.** At the root only, mix Dirichlet noise into the priors: $P \leftarrow 0.75\,P + 0.25\,\mathrm{Dir}(\alpha)$, with α scaled inversely to the game's branching factor (0.3 chess, 0.03 Go). Without it, deterministic self-play repeats the same game forever and the data collapses.
+
+**The self-play loop** (the [[Reinforcement Learning|master loop]], literally):
+
+1. Self-play games with current net + search; every position yields a triple $(s, \pi, z)$, where $z \in \{+1, 0, -1\}$ is the game's final outcome from that position's player's perspective
+2. Train on a sliding window of recent positions: $\;\mathcal{L} = (v - z)^2 \;-\; \pi^\top \log p \;+\; c\|\theta\|^2$ — the value head regresses to *what actually happened*, the policy head distills *what the search concluded*
+3. Stronger net → stronger search → better targets → repeat
+
+**Two engineering notes that decide whether it runs at all:** batch leaf evaluations across many parallel games (a GPU fed one position at a time idles — use *virtual loss*: temporarily score an in-flight edge as a loss so concurrent simulations fan out over different lines), and after playing a move, **reuse the chosen child's subtree** as the next search's root.
+
 ## The idea to keep: search as amortized improvement
 
 One sentence: **the network proposes, the search verifies and sharpens, and the network then learns to propose what the search concluded** — policy iteration where IMPROVE is a search procedure and the network is a cache of all past searches. This framing travels: the [[Practical Issues in Temporal Difference Learning - TD-Gammon (1992)|TD-Gammon]] self-play thread runs straight through it, and the contemporary echo is LLM **test-time compute** — spending inference-time search (long chains of thought, parallel sampling, tree-structured decoding) to outperform the raw policy, then distilling the results back into the model ([[RLVR]] is this loop with a verifier standing in for the game's win condition).
