@@ -43,6 +43,10 @@ aliases: [Reinforcement Learning MOC, RL Basics]
 - [[GRPO]] — the group as the baseline; critic deleted; degenerate groups, length bias, DAPO's fixes
 - [[RLVR]] — verifiers replace the RM; R1-Zero's emergent reasoning; the sharpening-vs-discovery debate
 
+## 🛠 Projects
+
+- [[Chinese Checkers RL Bot]] — *planning*: AlphaZero-lite on a MacBook M3 Pro — method verdict (MCTS + self-play, not Q-learning/PPO), env design, rung ladder, hardware & library plan
+
 ## 🌱 Frontier — queued next
 
 - Offline RL · Decision Transformer — RL as sequence modeling
