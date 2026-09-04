@@ -55,6 +55,18 @@ Run a few hundred simulations per move (AlphaZero: 800). Then **act by visit cou
 
 **Two engineering notes that decide whether it runs at all:** batch leaf evaluations across many parallel games (a GPU fed one position at a time idles — use *virtual loss*: temporarily score an in-flight edge as a loss so concurrent simulations fan out over different lines), and after playing a move, **reuse the chosen child's subtree** as the next search's root.
 
+### The recipe instantiated: AlphaZero playing chess
+
+Every slot above, filled in with the real values from [[A General RL Algorithm - AlphaZero (2018)|the chess run]]:
+
+- **The MDP.** State: the current position *plus the last 7 positions* — history planes are needed because bare-board chess isn't [[Markov Decision Process|Markov]] (threefold repetition, fifty-move rule). Actions: the legal moves. Reward: **zero on every move**, ±1/0 only at game's end, γ = 1 — the purest sparse-reward setting, made learnable by the value head carrying the outcome signal backward.
+- **State encoding**: an 8×8×119 tensor — for each of 8 history steps, 12 binary piece planes (6 piece types × 2 colors) + 2 repetition-count planes; plus 7 constant planes: side to move, move count, 4 castling rights, the no-progress counter.
+- **Action encoding**: an 8×8×73 stack = 4,672 logits — for each *from*-square: 56 "queen-move" targets (8 directions × up to 7 squares), 8 knight moves, 9 underpromotions. In any given position most are illegal: **mask illegal logits to −∞ and renormalize over the legal set.** This masking layer is where a real implementation spends its debugging time — and it's the only place the game's rules touch the network.
+- **Network and search**: one ~20-block, 256-filter ResNet feeding both heads; **800 simulations per move** (a few tens of milliseconds) against Stockfish's tens of millions of positions per second; root Dirichlet α = 0.3; τ = 1 for the first 30 plies. Over-long games are scored as draws — an episode cap, like any other env.
+- **Scale and outcome**: 44 million self-play games; 700k training steps at batch 4,096 (5,000 TPUs generating games, 64 training); surpassed Stockfish after ~4 hours of wall-clock and won the 100-game match **28–0 with 72 draws**. Along the way it *rediscovered* the standard human openings, played through them, and discarded several as inferior.
+
+What this instance demonstrates: nothing chess-specific was engineered except the two encodings — the identical loop, with a different board tensor and move encoding, mastered shogi and Go. **The encodings are the interface; the recipe is the whole algorithm.** For your own game, the work is: design the state tensor, design the move encoding + legality mask, and the rest is the skeleton above verbatim.
+
 ## The idea to keep: search as amortized improvement
 
 One sentence: **the network proposes, the search verifies and sharpens, and the network then learns to propose what the search concluded** — policy iteration where IMPROVE is a search procedure and the network is a cache of all past searches. This framing travels: the [[Practical Issues in Temporal Difference Learning - TD-Gammon (1992)|TD-Gammon]] self-play thread runs straight through it, and the contemporary echo is LLM **test-time compute** — spending inference-time search (long chains of thought, parallel sampling, tree-structured decoding) to outperform the raw policy, then distilling the results back into the model ([[RLVR]] is this loop with a verifier standing in for the game's win condition).

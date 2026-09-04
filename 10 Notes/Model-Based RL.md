@@ -51,6 +51,18 @@ Step 3 is the entire idea — same update rule, hallucinated data — and $n$ is
 
 The transferable rules of thumb, even outside MBPO: predict deltas; ensemble for uncertainty; imagination branches *from* data and stays *near* data; an off-policy learner to absorb the synthetic experience.
 
+### The recipe instantiated: MBPO on Hopper
+
+The canonical benchmark run from [[When to Trust Your Model - MBPO (2019)|the paper]], slot by slot:
+
+- **The env.** MuJoCo Hopper: a one-legged planar robot that must hop forward. Observation: an 11-dim real vector (joint angles and velocities of torso, thigh, leg, foot). Action: 3 joint torques in $[-1, 1]$. Reward, dense: forward velocity + a small alive bonus − a control cost. Episodes end at 1,000 steps *or the moment the robot falls* — so the first thing every policy learns is simply not falling.
+- **The model, concretely**: 7 MLPs (4 hidden layers × 200 units each), input = 14 numbers (11 state + 3 action), output = mean and variance of a Gaussian over 12 numbers (11-dim $\Delta s$ + reward). Trained by maximum likelihood on the entire real buffer; the 5 with best held-out loss are the elites that get queried.
+- **The imagination schedule**: every 250 real steps, retrain the ensemble; branch ~400 imagined rollouts *per real step* from random buffer states. On Hopper the rollout length is **k = 1** — a single imagined step! — while harder bodies (Ant, Humanoid) grow k linearly toward ~25 as the model earns trust over training. The volume does the work: hundreds of one-step branches per real step, not one long dream.
+- **The learner**: SAC taking ~20 gradient steps per real environment step (vanilla SAC takes 1) — the unlimited imagined buffer is what licenses being that update-greedy.
+- **The result**: SAC's asymptotic Hopper score with roughly an order of magnitude fewer real transitions; the bill moves from environment interaction to model training and rollout generation — pure compute.
+
+What this instance demonstrates: model error is *managed, never eliminated*. The ensemble stays visibly imperfect all the way through, and every design choice — deltas, elites, k = 1 branches anchored at real states, scheduled refresh — is about **bounding how much any single wrong prediction can matter**, not about making the model right.
+
 ## When to reach for it
 
 The [[Value-Based vs Policy-Based RL|sample-efficiency ladder]]: on-policy PG → off-policy value → **model-based**, which wins when data is scarcest — [[Mastering Atari with Limited Data - EfficientZero (2021)|EfficientZero]]'s 194% mean-human Atari-100k with 500× less data than DQN is the flagship number. The trade: model bias replaces sample cost, and exploitable model error is a standing risk. Two distinct ways to *use* the model, worth keeping separate: **background planning** (Dyna/Dreamer — imagined data trains a policy offline) vs **decision-time planning** (search at the moment of acting — [[Monte Carlo Tree Search]]).
