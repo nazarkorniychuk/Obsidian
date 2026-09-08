@@ -1,7 +1,7 @@
 ---
 type: project
 topics: [reinforcement-learning]
-status: planning
+status: doing
 created: 2026-09-03
 aliases: [chinese checkers bot, checkers AlphaZero]
 ---
@@ -10,7 +10,7 @@ aliases: [chinese checkers bot, checkers AlphaZero]
 
 > **Goal.** Train a Chinese-checkers agent that beats me (and a decent heuristic) on a MacBook M3 Pro / 18 GB — no cloud, no human game data. Method: **AlphaZero-lite** — the recipe already written in [[Monte Carlo Tree Search#The recipe: an AlphaZero-style agent, ready to implement|the MCTS note]], instantiated for this game.
 >
-> Map: [[RL MOC]] · Status: **Planning**
+> Map: [[RL MOC]] · Status: **Doing** — Rung 0 done
 
 ## 🗺 Planning
 
@@ -73,9 +73,11 @@ Each rung is independently testable; never debug learning and rules at the same 
 
 *(log entries and checkboxes as work happens)*
 
-- [ ] Rung 0: board + move generator + rules tests + heuristic opponent
+- [x] Rung 0: board + move generator + rules tests + heuristic opponent
 - [ ] Rung 1: pure UCT, benchmark vs heuristic
 - [ ] Rung 2: net + self-play loop + ELO ladder
+
+**2026-09-08 — Rung 0 shipped** (`~/Documents/Projects/ChineseCheckers`). Engine as planned: 121-cell star in a 17×17 axial grid, flat `(121,)` int8 state, all rules reduced to precomputed `(121, 6)` STEP/JUMP tables (batch-ready), factorized `(from, to)` moves, jump-chain BFS, ply cap 300 with progress scoring. Random + greedy forward-distance agents; 20 rules tests pass (14 opening moves verified by hand). Plus a browser debug board (stdlib HTTP + one HTML page, zero game logic in JS) — play by hand, spar the greedy bot, watch self-play, see each jump chain drawn. Greedy vs greedy finishes in ~130 plies with a genuine filled-triangle win, so the anti-fortress cap rarely bites at this level.
 
 ## 🏁 End results
 

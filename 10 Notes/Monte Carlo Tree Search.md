@@ -20,6 +20,8 @@ The first question is literally the [[Exploration vs Exploitation|exploration-ex
 
 $$\text{child} = \arg\max_i \; \underbrace{\bar{V}_i}_{\text{avg. simulation value}} + \; c\,\underbrace{\sqrt{\tfrac{\ln N}{n_i}}}_{\text{UCB bonus}}$$
 
+where, per node: $n_i$ = how many simulations have gone through child $i$ so far, $N = \sum_i n_i$ = how many have gone through the parent, $\bar{V}_i$ = the average final value of child $i$'s simulations (from the perspective of the player choosing), and $c$ = the exploration constant — the same knob as in [[Exploration vs Exploitation|UCB]], trading off "best average so far" against "least-tried option" (rarely-visited children have small $n_i$, so their bonus is large until they're tried).
+
 The loop, four phases per simulation: **select** (descend by UCB until leaving the tree) → **expand** (add a node) → **evaluate** (originally: random rollout to the end) → **backup** (propagate the result up the visited path). Asymmetry is the point: the tree grows *where the bandits direct it* — deep in promising lines, shallow in refuted ones — and UCT is provably consistent (converges to the optimal action). It immediately made computer Go programs master-level on small boards, but random rollouts remained a weak evaluator.
 
 ## The AlphaGo lineage: replace both weak parts with networks
