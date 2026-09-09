@@ -3,7 +3,7 @@ type: concept
 topics: [reinforcement-learning]
 status: evergreen
 created: 2026-08-29
-aliases: [MCTS, UCT, AlphaGo, AlphaZero, MuZero, tree search]
+aliases: [MCTS, UCT, PUCT, AlphaGo, AlphaZero, MuZero, tree search]
 ---
 
 # Monte Carlo Tree Search
@@ -30,6 +30,20 @@ The loop, four phases per simulation: **select** (descend by UCB until leaving t
 - **AlphaGo Zero** ([[Mastering Go Without Human Knowledge - AlphaGo Zero (2017)|Silver 2017]]): delete the human data. One network, random initialization, rules only. The engine is a loop worth stating precisely because it *is* the [[Reinforcement Learning|master loop]]: **the search, guided by the current network, outputs better move probabilities than the raw network** (search = IMPROVE); the network is trained to predict the search's choices and the game outcomes (training = EVALUATE + compress the improvement); the stronger network makes the next search stronger (ACT). **Result: beat the champion-defeating AlphaGo 100–0** — human knowledge had been a ceiling, not a floor
 - **AlphaZero** ([[A General RL Algorithm - AlphaZero (2018)|Silver 2018]]): the same loop, unchanged, mastered **chess, shogi, and Go — superhuman within 24 hours each**, beating Stockfish (decades of hand-crafted search engineering) while evaluating *thousands* of positions per second to Stockfish's tens of millions: learned evaluation buys selective depth over brute breadth
 - **MuZero** ([[Mastering Atari Go Chess Shogi - MuZero (2019)|Schrittwieser 2019]]): delete the rules. Plan inside a **learned latent model** trained to predict only what the search consumes — policy, value, reward — never reconstructing the world. **Matched AlphaZero in the board games without knowing the rules, and set SOTA on Atari-57**, the domain where model-based planning had always failed. The bridge to [[Model-Based RL]] complete
+
+## PUCT: the bandit rule, upgraded by a prior
+
+The lineage's selection rule — used from AlphaGo onward — is **PUCT** ("predictor + UCT"): the same argmax structure as UCT, but with the policy network's prior $P(s,a)$ steering the exploration bonus:
+
+$$a = \arg\max_a\; \underbrace{Q(s,a)}_{\text{avg. value, as in UCT}} \;+\; c_{puct}\;\underbrace{P(s,a)\,\frac{\sqrt{\sum_b N(s,b)}}{1 + N(s,a)}}_{\text{prior-weighted bonus}}$$
+
+Three deliberate changes from UCT's $c\sqrt{\ln N / n_i}$, each with a job:
+
+- **The prior multiplies the bonus.** In UCT every untried move is equally urgent — fine at branching factor 3, fatal at 300, since the budget drains into trying everything once. In PUCT urgency is *proportional to the net's belief*: an unvisited child scores $c_{puct}\, P\, \sqrt{N}$, so the first expansions follow the policy head's ranking and implausible moves may never be visited at all. The search behaves as if the branching factor were only "the moves worth considering"
+- **$1 + N(s,a)$ in the denominator, outside any square root.** Two effects: no special case at zero visits (the bonus stays finite, ranked purely by prior), and the bonus decays like $1/N$ instead of $1/\sqrt{n}$ — once a move is actually being measured, evidence overrides the prior *faster*
+- **$\sqrt{\sum_b N}$ in the numerator** — total exploration pressure keeps growing with the parent's budget, so even low-prior children eventually get their audit ($c_{puct} \approx 1$–$2.5$ in practice; AlphaZero lets it grow slowly with $N$)
+
+The reading to keep: **early in a node's life the argmax is essentially "trust the policy net"; as visits accumulate, $Q$ takes over and the search becomes its own evidence-driven judgment** — the prior is a soft opening book that measured reality gradually overrules. Its one failure mode is the flip side of its power: a move the net wrongly despises gets a near-zero bonus and can *starve*. That is exactly why the root Dirichlet noise in the recipe below is non-optional — it forces a floor of exploration under the prior at the one node where the played move is actually decided.
 
 ## The recipe: an AlphaZero-style agent, ready to implement
 
