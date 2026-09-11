@@ -10,7 +10,7 @@ aliases: [chinese checkers bot, checkers AlphaZero]
 
 > **Goal.** Train a Chinese-checkers agent that beats me (and a decent heuristic) on a MacBook M3 Pro / 18 GB — no cloud, no human game data. Method: **AlphaZero-lite** — the recipe already written in [[Monte Carlo Tree Search#The recipe: an AlphaZero-style agent, ready to implement|the MCTS note]], instantiated for this game.
 >
-> Map: [[RL MOC]] · Status: **Doing** — Rung 0 done
+> Map: [[RL MOC]] · Status: **Doing** — Rungs 0–1 done, Rung 2 scaffolded
 
 ## 🗺 Planning
 
@@ -74,10 +74,16 @@ Each rung is independently testable; never debug learning and rules at the same 
 *(log entries and checkboxes as work happens)*
 
 - [x] Rung 0: board + move generator + rules tests + heuristic opponent
-- [ ] Rung 1: pure UCT, benchmark vs heuristic
-- [ ] Rung 2: net + self-play loop + ELO ladder
+- [x] Rung 1: pure UCT, benchmark vs heuristic
+- [ ] Rung 2: net + self-play loop + ELO ladder — *scaffolding done, training next*
 
 **2026-09-08 — Rung 0 shipped** (`~/Documents/Projects/ChineseCheckers`). Engine as planned: 121-cell star in a 17×17 axial grid, flat `(121,)` int8 state, all rules reduced to precomputed `(121, 6)` STEP/JUMP tables (batch-ready), factorized `(from, to)` moves, jump-chain BFS, ply cap 300 with progress scoring. Random + greedy forward-distance agents; 20 rules tests pass (14 opening moves verified by hand). Plus a browser debug board (stdlib HTTP + one HTML page, zero game logic in JS) — play by hand, spar the greedy bot, watch self-play, see each jump chain drawn. Greedy vs greedy finishes in ~130 plies with a genuine filled-triangle win, so the anti-fortress cap rarely bites at this level.
+
+**2026-09-09 — Rung 1 passed, the hard way.** Textbook UCT (uniform rollouts, c=1.4) lost 10/10 to greedy — root diagnosis: truncated-rollout values (±0.1–0.3) drowned under the UCB bonus → near-uniform visits → near-random play. Two rounds of fixes: (1) race-biased rollouts + gain-ordered expansion + progressive widening + c=0.7 → parity; (2) *sharper verdicts* — rollout depth 50→30, margin scale 20→10 → **80% vs greedy at 400 sims, 90% at 1200, and the search gradient restored (1200 beats 400 sims 8–2)**; control (old verdict params at 1200 sims) stuck at 50%, confirming evaluation quality, not budget, was the wall. Lesson for [[Monte Carlo Tree Search]]: c is a *reward-scale* parameter, and averaging more samples of a blurry evaluator buys precision, not truth.
+
+**2026-09-09 — Rung 2 scaffolding shipped.** The recipe's skeleton, modular: `evaluators.py` (the (priors, value) socket — MCTS as amplifier around any policy/value pair), `search.py` (PUCT, root Dirichlet, temperature π for training), `encoding.py` (mover-relative 4×17×17 planes via 180° rotation; factorized from/to move indices + legality mask), `net.py` (ResNet ~0.5M @ 64×6, two heads, MPS-ready), `selfplay.py` ((s, π, z) + replay window), `train.py` (the master loop; smoke run: losses fall, checkpoints load back into the arena as `net:PATH` agents), `ladder.py` (round-robin + ELO, greedy anchored at 1000). 35 tests green. Next: a real overnight training run (sequential loop first), then the batched parallel engine.
+
+**2026-09-10 — first real training night (runs/night1): learning, but slow.** 135 iterations, ~2,160 games (batched engine: 6 workers × 32 in-flight games, ~190 s/iter, ~25 plies/s sustained). What moved: search verdicts sharpened (π entropy 3.9 → 2.2), games began *finishing* (capped fraction 100% → ~40–60% after iter ~90), policy loss 3.96 → 3.09. What didn't: **0/20 vs greedy** (margin −32), and the value head is confident (|v| ≈ 0.43) but near-uncorrelated with outcomes in close games; the raw policy still lags its own search targets by ~0.9 nats. Beats random 9/10. Diagnosis: for the first ~80 iterations *every* game hit the ply cap, so all z labels were decided by hair-thin progress margins — the noisiest possible value signal (the failure mode predicted when reward shaping was discussed: cap-heavy shuffling starves the value head). Candidate fixes for night 2, in order: graded z for capped games (z = clamp(margin/K) instead of bare ±1 — honest labels for artificial endings), possibly a KataGo-style auxiliary margin head, and more sims per move now that the engine is ~12× faster.
 
 ## 🏁 End results
 
