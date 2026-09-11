@@ -8,39 +8,41 @@ aliases: [weak topology, weak-star topology, Banach-Alaoglu, Lp duality, weak co
 
 # Dual Spaces and Weak Topologies
 
-> **Where this sits.** Chapter 4 of [[18.102 Functional Analysis]] — the compactness rescue. [[Normed and Banach Spaces|Ch. 2's dividing line]]: in infinite dimensions the unit ball is *never* norm-compact, so minimizing sequences have no convergent subsequences and existence proofs die. The fix: **make the topology coarser** — fewer open sets, more compact sets — exactly as coarse as the dual allows. Payoff: Banach–Alaoglu, and the explicit duals of $L^p$.
+> **Where this sits.** Chapter 4 of [[18.102 Functional Analysis]] — the compactness rescue. [[Normed and Banach Spaces|Ch. 2's dividing line]]: $\dim X = \infty \Rightarrow \overline{B}_1(0)$ never norm-compact, so minimizing sequences have no convergent subsequences and existence proofs die. The fix: **make the topology coarser** — fewer open sets, more compact sets — exactly as coarse as the dual allows. Payoff: Banach–Alaoglu, and the explicit duals of $L^p$.
 
 ## The topologies
 
-Machinery: a **locally convex space** = TVS whose topology comes from a separating family of seminorms. Both weak topologies are instances, and both are [[Topological and Metric Spaces|initial topologies]] ("coarsest making a family of maps continuous"):
+Machinery: a **locally convex space** = TVS whose topology is induced by a separating family of seminorms $(p_i)_{i \in I}$ (neighborhood subbase $\{y : p_i(x - y) < \varepsilon\}$; separating: $x \neq 0 \Rightarrow \exists i: p_i(x) \neq 0$, which forces Hausdorff). Both weak topologies are instances, and both are [[Topological and Metric Spaces|initial topologies]]:
 
-| topology | on | induced by | convergence means |
-|---|---|---|---|
-| **weak** $\sigma(X, X^*)$ | $X$ | seminorms $x \mapsto \lvert f(x)\rvert$, $f \in X^*$ | $x_n \rightharpoonup x$ ⇔ $f(x_n) \to f(x)\ \forall f \in X^*$ |
-| **weak-*** $\sigma(X^*, X)$ | $X^*$ | seminorms $f \mapsto \lvert f(x)\rvert$, $x \in X$ | $f_n \stackrel{*}{\rightharpoonup} f$ ⇔ $f_n(x) \to f(x)\ \forall x \in X$ |
+| topology | on | seminorms | = initial topology of | convergence |
+|---|---|---|---|---|
+| **weak** $\sigma(X, X^*)$ | $X$ | $x \mapsto \lvert f(x) \rvert$, $f \in X^*$ | all $f \in X^*$ | $x_n \rightharpoonup x :\Leftrightarrow f(x_n) \to f(x)\ \forall f \in X^*$ |
+| **weak-*** $\sigma(X^*, X)$ | $X^*$ | $f \mapsto \lvert f(x) \rvert$, $x \in X$ | all evaluations $i(x)$, $x \in X$ | $f_n \stackrel{*}{\rightharpoonup} f :\Leftrightarrow f_n(x) \to f(x)\ \forall x \in X$ |
 
-- Weak ⊂ norm topology (agree iff finite-dimensional). Weak-* ⊂ weak-topology-of-$X^*$, equal iff $X$ reflexive — weak-* tests only against $X$, not all of $X^{**}$: it is the *cheapest* topology on the dual, which is exactly why its compactness theorem is strongest
-- In infinite dimensions neither topology is metrizable on the whole space (though on *bounded balls* weak-* is, when $X$ is separable — the loophole below)
-- Facts about weak convergence: weakly convergent ⇒ **bounded** (uniform boundedness in disguise) and the norm is weakly lower semicontinuous, $\|x\| \le \liminf \|x_n\|$ — mass can leak in a weak limit, never appear
-- Curiosity with content: $\ell^1$ has the **Schur property** — weak and norm convergence of *sequences* coincide (the dual $\ell^\infty$ is that large) — yet the topologies still differ
+- $\sigma(X, X^*) \subset \mathcal{T}_{\|\cdot\|}$, equal iff $\dim X < \infty$. On $X^*$: $\sigma(X^*, X) \subset \sigma(X^*, X^{**})$, equal iff $X$ reflexive — weak-* tests only against $X$, not $X^{**}$: the *cheapest* topology on the dual, which is exactly why its compactness theorem is strongest
+- $\dim X = \infty$ ⇒ neither topology is metrizable on the whole space (though on bounded balls weak-* *is*, when $X$ separable — the loophole below)
+- Weak convergence facts: $x_n \rightharpoonup x \Rightarrow \sup_n \|x_n\| < \infty$ (uniform boundedness in disguise) and $\|x\| \le \liminf_n \|x_n\|$ (norm weakly lower semicontinuous) — mass can leak in a weak limit, never appear
+- Curiosity with content: $\ell^1$ has the **Schur property** — $x_n \rightharpoonup x \Rightarrow \|x_n - x\|_1 \to 0$ (the dual $\ell^\infty$ is that large) — yet the topologies still differ
 
 ## Banach–Alaoglu — compactness regained
 
-**Theorem.** The closed unit ball of $X^*$ is **weak-\* compact.** *Mechanism, worth remembering:* a functional with $\|f\| \le 1$ is a point of the product $\prod_{x \in X} \{|\lambda| \le \|x\|\}$ — compact by [[Topological and Metric Spaces|Tychonoff]]; weak-* topology = product topology restricted there; "being linear" is a closed condition. So the ball is a closed subset of a compact product. □
+$$\boxed{\;\overline{B}_{X^*} = \{f \in X^* : \|f\| \le 1\} \text{ is weak-* compact, for every normed } X\;}$$
 
-**Separable case** ($X$ separable): the ball is weak-* **sequentially** compact — every bounded sequence of functionals has a weak-*-convergent subsequence (metrizability of the ball, or directly: diagonal argument over a countable dense set + bounded linear extension).
+*Mechanism, worth remembering:* $\|f\| \le 1$ means $f(x) \in K_x = \{\lambda : |\lambda| \le \|x\|\}$ for every $x$, so $\overline{B}_{X^*} \subset \prod_{x \in X} K_x$ — compact by [[Topological and Metric Spaces|Tychonoff]]; the weak-* topology *is* the product topology restricted there (both are initial topologies of the evaluations); and $\overline{B}_{X^*} = \{f \in K : f \text{ linear}\} = \bigcap_{x,y,\lambda,\mu} \{f : (\pi_{\lambda x + \mu y} - \lambda \pi_x - \mu \pi_y)(f) = 0\}$ is closed in the product. Closed ⊂ compact ⇒ compact. □
 
-Why this is *the* existence tool: bounded sequence → weak-* cluster point, for free. In reflexive spaces the same works for the weak topology on $X$ itself — bounded sequences in $L^p$ ($1<p<\infty$) or [[Hilbert Spaces|Hilbert space]] have weakly convergent subsequences. This is the engine of the **direct method of the calculus of variations**: minimize by taking a bounded minimizing sequence, extract a weak limit, use lower semicontinuity. Caution: only the *ball* is compact — the ball has empty weak-* interior; the space is not locally compact.
+**Separable case**: $X$ separable ⇒ $\overline{B}_{X^*}$ weak-* **sequentially** compact — every bounded $(f_n) \subset X^*$ has a weak-*-convergent subsequence (metrizability of the ball, or directly: diagonal argument over a countable dense set + bounded linear extension).
+
+Why this is *the* existence tool: bounded sequence → weak-* cluster point, for free. In reflexive spaces the same holds for the weak topology on $X$ itself — bounded sequences in $L^p$ ($1<p<\infty$) or [[Hilbert Spaces|Hilbert space]] have weakly convergent subsequences. This is the engine of the **direct method of the calculus of variations**: bounded minimizing sequence → weak limit → lower semicontinuity. Caution: only the *ball* is compact — $\operatorname{int}_{w*}(\overline{B}_{X^*}) = \emptyset$; the space is not locally compact.
 
 ## Riesz representation for $L^p$ — the duals, explicitly
 
-With $\tfrac1p + \tfrac1q = 1$, the pairing $\phi_g(f) = \int g f \, d\mu$ gives:
+With $\tfrac1p + \tfrac1q = 1$, the pairing $\phi: L^q \to (L^p)^*$, $\phi_g(f) = \int_\Omega g f \, d\mu$:
 
-$$\boxed{\;(L^p)^* \cong L^q \text{ isometrically, } 1 < p < \infty; \qquad (L^1)^* \cong L^\infty \text{ ($\sigma$-finite $\mu$)}\;}$$
+$$\boxed{\;(L^p)^* \cong L^q \text{ isometrically},\ 1 < p < \infty; \qquad (L^1)^* \cong L^\infty \ (\mu\ \sigma\text{-finite})\;}$$
 
-- Hölder gives $\|\phi_g\| \le \|g\|_q$; equality by testing against $f = e^{i\theta}|g|^{q-1}$ (the equality case of Hölder, used as a *construction*)
-- Surjectivity, this course's route (elementary, no Radon–Nikodym): given a norm-1 functional $F$, a norm-1 maximizing sequence is Cauchy **by uniform convexity** ([[Measure Theory and the Lebesgue Integral|Clarkson]]) — the maximizer $f$ exists, and $g \sim |f|^{p/q}$ represents $F$. $p = 1$ then follows by a limiting/gluing argument over finite-measure pieces
-- Consequences: **$L^p$ reflexive for $1 < p < \infty$** (dual of the dual walks back). NOT reflexive: $\ell^1, \ell^\infty, L^1, L^\infty$. And the asymmetry to remember: $(L^1)^* = L^\infty$ but $(L^\infty)^* \supsetneq L^1$ — e.g. extend $f \mapsto f(0)$ from $C_b$ by Hahn–Banach: a functional on $L^\infty$ that no $L^1$ function represents (a "delta function" living in the bidual)
+- $\|\phi_g\| \le \|g\|_q$ is Hölder; equality by testing against $f = e^{i\theta} |g|^{q-1}$ (the equality case of Hölder, used as a *construction*)
+- Surjectivity, this course's route (elementary, no Radon–Nikodym): given $F \in (L^p)^*$, $\|F\| = 1$, any sequence with $\|f_n\|_p = 1,\ F(f_n) \to 1$ is Cauchy **by uniform convexity** ([[Measure Theory and the Lebesgue Integral|Clarkson]]) — the maximizer $f$ exists, and $g = \lambda |f|^{p/q}$ represents $F$. The case $p = 1$ follows by a limiting/gluing argument over finite-measure pieces
+- Consequences: **$L^p$ reflexive for $1 < p < \infty$** (the dual of the dual walks back). NOT reflexive: $\ell^1, \ell^\infty, L^1, L^\infty$. And the asymmetry to remember: $(L^1)^* = L^\infty$ but $(L^\infty)^* \supsetneq L^1$ — e.g. extend $f \mapsto f(0)$ from $C_b$ by Hahn–Banach: a functional on $L^\infty$ no $L^1$-function represents (a "delta function" living in the bidual)
 
 ## Related
 

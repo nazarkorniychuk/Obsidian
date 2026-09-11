@@ -12,40 +12,51 @@ aliases: [Hilbert space, inner product space, orthonormal basis, Parseval, Riesz
 
 ## The structure
 
-- **Inner product**: positive definite, conjugate-symmetric, linear in the **second** slot (this course's convention — many books use the first). **Hilbert space** = complete inner product space. Examples: $\ell^2$, $L^2(\Omega)$ with $\langle f,g\rangle = \int \bar{f} g \, d\mu$
-- **Cauchy–Schwarz** $|\langle v,w\rangle| \le \|v\| \|w\|$ (minimize the quadratic $\|v + tw\|^2$); makes $\|v\| = \langle v,v\rangle^{1/2}$ a norm and the inner product continuous
-- **Parallelogram law** $\|u{+}v\|^2 + \|u{-}v\|^2 = 2\|u\|^2 + 2\|v\|^2$ — the *fingerprint*: a norm comes from an inner product **iff** it satisfies this (recover it via polarization). $\ell^p, L^p$ pass iff $p = 2$ — so $L^2$ is the *only* Hilbert space in the family
+- **Inner product**: $\langle x,x \rangle \ge 0$ with equality iff $x = 0$; $\langle x, \lambda y + \mu z \rangle = \lambda \langle x,y \rangle + \mu \langle x,z \rangle$ (linear in the **second** slot — course convention); $\langle x,y \rangle = \overline{\langle y,x \rangle}$. **Hilbert space** = complete w.r.t. $\|v\| = \langle v,v \rangle^{1/2}$. Examples: $\ell^2$; $L^2(\Omega)$ with $\langle f,g \rangle = \int_\Omega \bar{f} g \, d\mu$
+- **Cauchy–Schwarz**: $|\langle v,w \rangle| \le \|v\| \|w\|$, equality iff linearly dependent (minimize the quadratic $t \mapsto \|v + t w\|^2$); makes $\|\cdot\|$ a norm and $\langle \cdot,\cdot \rangle$ continuous
+- **Parallelogram law** — the *fingerprint*:
+$$\|u+v\|^2 + \|u-v\|^2 = 2\|u\|^2 + 2\|v\|^2$$
+  a norm comes from an inner product **iff** it satisfies this; recover it via **polarization** ($\langle u,v \rangle = \tfrac14(\|u+v\|^2 - \|u-v\|^2)$ real; complex adds $\mp i \|u \pm iv\|^2$ terms). $\ell^p, L^p$ pass iff $p = 2$ — $L^2$ is the *only* Hilbert space in the family
 
 ## Projection — the geometric miracle
 
-**Closest-point theorem.** $V$ closed subspace, $x \in H$: there is a **unique** closest point $P_V x \in V$, characterized by $x - P_V x \perp V$. *Mechanism:* the parallelogram law forces any minimizing sequence to be Cauchy — this is where completeness + geometry click together. Consequences:
+**Closest-point theorem.** $V \neq \{0\}$ closed subspace, $x \in H$:
+$$\exists!\; y \in V: \ \|x - y\| = \operatorname{dist}(x, V), \qquad \text{characterized by } x - y \in V^\perp$$
+*Mechanism:* for a minimizing sequence, the parallelogram law gives $\|y_n - y_m\|^2 \le 2\|y_n - x\|^2 + 2\|y_m - x\|^2 - 4 \operatorname{dist}(x,V)^2 \to 0$ — Cauchy; completeness finishes. This is where completeness + geometry click together. Consequences:
 
-- $H = V \oplus V^\perp$ for every closed subspace — **every closed subspace is complemented** (fails in Banach spaces: $c_0 \subset \ell^\infty$ has no complement); $P_V$ is a norm-1 linear projection; $\overline{V} = (V^\perp)^\perp$
-- Extends to closed *convex* sets (and to uniformly convex Banach spaces) — the form used in optimization
+- $P_V: x \mapsto y$ is linear, $P_V^2 = P_V$, $\|P_V\| = 1$, $\ker P_V = V^\perp$, and
+$$H = V \oplus V^\perp \quad \text{for every closed subspace } V, \qquad \overline{V} = (V^\perp)^\perp$$
+  — **every closed subspace is complemented** (fails in Banach spaces: $c_0 \subset \ell^\infty$ has no complement)
+- Extends to closed *convex* sets, and to uniformly convex Banach spaces — the form used in optimization
 
 ## Riesz representation — the dual is the space
 
-$$\boxed{\;\text{every } f \in H^* \text{ is } f = \langle z_f, \cdot \rangle \text{ for a unique } z_f \in H, \quad \|f\| = \|z_f\|\;}$$
+$$\boxed{\;\forall f \in H^*\ \exists!\, z_f \in H: \ f(x) = \langle z_f, x \rangle \ \forall x, \qquad \|f\| = \|z_f\|\;}$$
 
-*Mechanism:* $\ker(f)$ is a closed hyperplane; its orthogonal complement is one-dimensional; scale. The map $f \mapsto z_f$ is an **anti-linear isometric bijection** $H^* \cong H$ (quantum mechanics' bra–ket: $|\psi\rangle \leftrightarrow \langle\psi|$). Immediate payoffs: $H$ is **reflexive**; weak convergence is testable inside $H$ ($x_n \rightharpoonup x$ ⇔ $\langle y, x_n - x\rangle \to 0\ \forall y$); **every bounded sequence has a weakly convergent subsequence** (via [[Dual Spaces and Weak Topologies|Banach–Alaoglu]]) — the cleanest compactness statement in the course.
+*Mechanism:* $\ker(f)$ is a closed hyperplane ⇒ $\ker(f)^\perp$ is one-dimensional; scale its generator. The map $f \mapsto z_f$ is an **anti-linear isometric bijection** $H^* \cong H$ (quantum mechanics' bra–ket: $|\psi\rangle \leftrightarrow \langle\psi|$). Immediate payoffs: $H$ **reflexive**; weak convergence internal — $x_n \rightharpoonup x \Leftrightarrow \langle y, x_n - x \rangle \to 0\ \forall y \in H$; **every bounded sequence has a weakly convergent subsequence** (via [[Dual Spaces and Weak Topologies|Banach–Alaoglu]]) — the cleanest compactness statement in the course.
 
 ## Orthonormal bases — Fourier analysis abstracted
 
-**ONB** = *maximal* orthonormal set. Three equivalent tests: maximal ⇔ only $0$ is orthogonal to all of it ⇔ its span is dense.
+**ONB** = *maximal* orthonormal set ($\|e_i\| = 1$, $\langle e_i, e_j \rangle = 0$ for $i \neq j$). Three equivalent tests:
+$$S \text{ maximal} \iff \big(\langle x, e \rangle = 0\ \forall e \in S \Rightarrow x = 0\big) \iff \overline{\operatorname{span}}(S) = H$$
 
-- **Bessel** (any orthonormal family): $\sum_i |\langle e_i, x\rangle|^2 \le \|x\|^2$ — coefficients are always square-summable, and only countably many are nonzero even for uncountable families
-- **Parseval** (ONB, the equality): $x = \sum_i \langle e_i, x\rangle e_i$ (unconditional convergence — any order works) and $\|x\|^2 = \sum_i |\langle e_i, x\rangle|^2$. Generalized Pythagoras; for trigonometric ONBs this *is* the theory of Fourier series
-- Every Hilbert space has an ONB (Zorn); separable ⇔ ONB countable. **Classification**: every infinite-dimensional separable Hilbert space is isomorphic to $\ell^2$ via $x \mapsto (\langle e_i, x\rangle)_i$ — *"there is essentially only one Hilbert space."* The interesting structure is never the space; it's the operators on it
-- Fine print worth keeping: unconditional ≠ absolute convergence in infinite dimensions (Dvoretzky–Rogers: every infinite-dimensional Banach space has unconditionally-but-not-absolutely convergent series)
+- **Bessel** (any orthonormal family): $\sum_{i \in I} |\langle e_i, x \rangle|^2 \le \|x\|^2$ — coefficients always square-summable; at most countably many nonzero even for uncountable $I$
+- **Parseval** (ONB — the equality):
+$$x = \sum_{i \in I} \langle e_i, x \rangle\, e_i \ \text{ (unconditionally)}, \qquad \|x\|^2 = \sum_{i \in I} |\langle e_i, x \rangle|^2$$
+  Generalized Pythagoras; for trigonometric ONBs this *is* the theory of Fourier series
+- Every Hilbert space has an ONB (Zorn); separable ⇔ every ONB countable. **Classification**: $\dim H = \infty$ separable ⇒ $H \cong \ell^2$ via $x \mapsto (\langle e_i, x \rangle)_{i \in \mathbb{N}}$ — *"there is essentially only one Hilbert space."* The interesting structure is never the space; it's the operators on it
+- Fine print: unconditional ≠ absolute convergence in infinite dimensions (Dvoretzky–Rogers: every infinite-dimensional Banach space has unconditionally-but-not-absolutely convergent series)
 
 ## Adjoints — the $*$ operation
 
-Via Riesz, the [[Normed and Banach Spaces|dual operator]] pulls back to the space itself: $T^* \in BL(H)$ is defined by $\langle x, Ty\rangle = \langle T^* x, y\rangle$, with $\|T^*\| = \|T\|$.
+Via Riesz, the [[Normed and Banach Spaces|dual operator]] $T': f \mapsto f \circ T$ pulls back to the space itself:
+$$T^* \in BL(H) \text{ defined by } \langle x, Ty \rangle = \langle T^* x, y \rangle \ \forall x,y, \qquad \|T^*\| = \|T\|$$
 
-- Calculus: $(ST)^* = T^* S^*$, $T^{**} = T$, and the **C\*-identity** $\|T^* T\| = \|T\|^2$ (the seed of C\*-algebra theory). Structural duality: $\ker S = (\operatorname{range} S^*)^\perp$ — the abstract rank–nullity, used verbatim in [[Spectral Theory|Fredholm theory]]
-- Zoo: **self-adjoint** ($T^* = T$), **unitary** ($T^*T = TT^* = I$, the isomorphisms), **normal** ($T^*T = TT^*$). Matrix case: $*$ = conjugate transpose. The shift on $\ell^2$: adjoint is the *other* shift; not normal — one composition is $I$, the other a projection
-- **Hellinger–Toeplitz**: a symmetric operator defined on *all* of $H$ is automatically bounded (closed graph theorem). Deep consequence: unbounded self-adjoint operators — position, momentum, every Hamiltonian — *cannot* be everywhere-defined; domains are forced by the mathematics, not pedantry
-- For self-adjoint $T$: $\|T\| = \sup_{\|x\|=1} |\langle x, Tx\rangle|$ — the norm is visible on the diagonal; the lever that makes the [[Spectral Theory|spectral theorem]] work
+- Calculus: $(ST)^* = T^* S^*$, $T^{**} = T$, $(\lambda T)^* = \bar{\lambda} T^*$, and the **C\*-identity** $\|T^* T\| = \|T\|^2$ (the seed of C*-algebra theory). Structural duality — the abstract rank–nullity, used verbatim in [[Spectral Theory|Fredholm theory]]:
+$$\ker S = (\operatorname{range} S^*)^\perp, \qquad \ker S^* = (\operatorname{range} S)^\perp$$
+- Zoo: **self-adjoint** $T^* = T$; **unitary** $T^* T = T T^* = I$ (the isomorphisms); **normal** $T^* T = T T^*$. Matrix case: $* $ = conjugate transpose. Shift on $\ell^2$: $S(x_1, x_2, \dots) = (x_2, x_3, \dots)$, $S^*(x_1, x_2, \dots) = (0, x_1, x_2, \dots)$; $S S^* = I$ but $S^* S = P_{\{x_1 = 0\}}$ — not normal
+- **Hellinger–Toeplitz**: $\langle Tx, y \rangle = \langle x, Ty \rangle\ \forall x,y$ with $\operatorname{dom}(T) = H$ ⇒ $T$ bounded (closed graph theorem). Deep consequence: unbounded self-adjoint operators — position, momentum, every Hamiltonian — *cannot* be everywhere-defined; domains are forced by the mathematics, not pedantry
+- Self-adjoint $T$: $\|T\| = \sup_{\|x\|=1} |\langle x, Tx \rangle|$ — the norm is visible on the diagonal; the lever that makes the [[Spectral Theory|spectral theorem]] work
 
 ## Related
 
