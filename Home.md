@@ -11,6 +11,7 @@ type: dashboard
 - **[[Deep Learning Basics]]** — the whole cluster, organized
 - **[[RL MOC]]** — reinforcement learning (complete: foundations → methods → LLM post-training)
 - **[[18.102 Functional Analysis]]** — math reference: Banach/Hilbert spaces, measure theory, spectral theory
+- **[[SWE Interview Prep]]** — Citadel SWE internship: patterns, internals, probability, order books
 - Hubs: [[Transformer]] (architecture) · [[Neural Network]] (foundations) · [[Reinforcement Learning]] (the RL loop)
 
 ## 🕐 Recently edited
